@@ -43,13 +43,10 @@ def make_grid(NUMB_X_CELLS, NUMB_Y_CELLS):
         grid[:, idx_adj+1] = 2
         grid[idx_adj, :] = 2
         grid[idx_adj+1, :] = 2
-
-    
-
     return grid
 
 
-grid = make_grid2(NUMB_X_CELLS, NUMB_Y_CELLS)
+grid = make_grid(NUMB_X_CELLS, NUMB_Y_CELLS)
 grid[NUMB_Y_CELLS-1, NUMB_X_CELLS-1] = 1
 
 # Initialize pg
