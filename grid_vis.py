@@ -1,4 +1,5 @@
-import pygame
+import pygame as pg
+import numpy as np
 import networkx as nx
 
 #COLOURS
@@ -12,9 +13,9 @@ RED = (255, 0, 0)
 # CELL SIZE
 WIDTH = 5
 HEIGHT = 5
+
 # no. cells in width and height
-NUMB_X_CELLS = 100
-NUMB_Y_CELLS = 100
+NUMB_X_CELLS = NUMB_Y_CELLS = 140
 # MARGIN BETWEEN CELLS
 MARGIN = 1
 
@@ -32,45 +33,53 @@ def isroad(row_index, column_index):
     return is_white_row or is_white_column
 
 # MAKES GAME GRID
-grid = [] # stores colour states
-for row in range(NUMB_X_CELLS):
-    grid.append([])
-    for column in range(NUMB_Y_CELLS):
-        if isroad(row, column):
-            grid[row].append(2)
-        else:
-            grid[row].append(0)  # Append a cell
- 
-grid[NUMB_X_CELLS-1][ NUMB_Y_CELLS-1] = 1
+def make_grid(NUMB_X_CELLS, NUMB_Y_CELLS):
+    grid = np.zeros((NUMB_X_CELLS, NUMB_Y_CELLS), dtype=int)
 
-# Initialize pygame
-pygame.init()
- 
+    for idx in range(15, NUMB_X_CELLS, 15):
+        idx_adj = idx + 2*(idx//15-1)
+        if idx_adj >= NUMB_X_CELLS: continue
+        grid[:, idx_adj] = 2
+        grid[:, idx_adj+1] = 2
+        grid[idx_adj, :] = 2
+        grid[idx_adj+1, :] = 2
+
+    
+
+    return grid
+
+
+grid = make_grid2(NUMB_X_CELLS, NUMB_Y_CELLS)
+grid[NUMB_Y_CELLS-1, NUMB_X_CELLS-1] = 1
+
+# Initialize pg
+pg.init()
+
 # Set the HEIGHT and WIDTH of the screen
 WINDOW_SIZE = [NUMB_X_CELLS*WIDTH + MARGIN*NUMB_X_CELLS, NUMB_Y_CELLS*HEIGHT + MARGIN*NUMB_Y_CELLS]
-screen = pygame.display.set_mode(WINDOW_SIZE, pygame.RESIZABLE) # surface
+screen = pg.display.set_mode(WINDOW_SIZE, pg.RESIZABLE) # surface
  
 # Set title of screen
-pygame.display.set_caption("simple traffic simulation")
+pg.display.set_caption("simple traffic simulation")
  
 # Loop until the user clicks the close button.
 done = False
  
 # Used to manage how fast the screen updates
-clock = pygame.time.Clock()
+clock = pg.time.Clock()
  
 # -------- Main Program Loop -----------
 while not done:
-    for event in pygame.event.get():  # User did something
-        if event.type == pygame.QUIT:  # If user clicked close
+    for event in pg.event.get():  # User did something
+        if event.type == pg.QUIT:  # If user clicked close
             done = True  # Flag that we are done so we exit this loop
-        elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_ESCAPE:
-                pygame.quit()
+        elif event.type == pg.KEYDOWN:
+            if event.key == pg.K_ESCAPE:
+                pg.quit()
             
-        elif event.type == pygame.MOUSEBUTTONDOWN: # clicked cells turn green
+        elif event.type == pg.MOUSEBUTTONDOWN: # clicked cells turn green
             # User clicks the mouse. Get the position
-            pos = pygame.mouse.get_pos()
+            pos = pg.mouse.get_pos()
             # gets discrete coordinate of mouse click pos
             column = pos[0] // (WIDTH + MARGIN)
             row = pos[1] // (HEIGHT + MARGIN)
@@ -95,7 +104,7 @@ while not done:
             if grid[row][column] == 1:
                 colour = GREEN
 
-            pygame.draw.rect(screen,
+            pg.draw.rect(screen,
                                 colour,
                                 [(MARGIN + WIDTH) * column + MARGIN, # left
                                 (MARGIN + HEIGHT) * row + MARGIN, # top
@@ -108,11 +117,11 @@ while not done:
     clock.tick(60)
 
     # Go ahead and update the screen with what we've drawn.
-    pygame.display.flip()
+    pg.display.flip()
 
 # Be IDLE friendly. If you forget this line, the program will 'hang'
 # on exit.
-pygame.quit()
+pg.quit()
 
 
 
