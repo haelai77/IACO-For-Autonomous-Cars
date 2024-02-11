@@ -1,4 +1,5 @@
 import networkx as nx
+from networkx import grid_graph, MultiDiGraph
 
 class Pheromone_graph:
     #TODO  singleton?
@@ -8,10 +9,16 @@ class Pheromone_graph:
         self.graph = None
         
     def build_graph(self): # makes graph based on dimensions passed in (simple grid)
-        
-        return 
+        dim1 = self.NUMB_X_CELLS
+        dim2 = self.NUMB_Y_CELLS
+        G = grid_graph(dim=(dim1, dim2))
+        G.remove_node((0,0))
+        G.remove_node((0, dim1-1))
+        G.remove_node((dim2-1, 0))
+        G.remove_node((dim1-1, dim2-1))
+        self.graph = MultiDiGraph(G)
     
-    def update_weight(self,coord):
+    def update_weight(self, coord): # network 
         return
     
     def subscribe_agent(self, coord):

@@ -2,6 +2,7 @@ import pygame as pg
 import numpy as np
 import numpy.typing as npt
 import networkx as nx
+from Agent import Agent
 
 ###### GLOBAL VARIABLES ######
 
@@ -23,40 +24,54 @@ DARK_ORANGE = (255, 158, 0)
 
 RED = (255, 0, 0)
 
-
-# CELL SIZE
+# INDIVIDUAL CELL SIZE
 WIDTH = 5
 HEIGHT = 5
 
 # no. cells in width and height
 NUMB_X_CELLS = NUMB_Y_CELLS = 100
+
+# GREY BLOCK SIZE (WIDTH || HEIGHT)
+GREY_SIZE = 15
+
 # MARGIN BETWEEN CELLS
 MARGIN = 1
 
 # Set the HEIGHT and WIDTH of the screen
 WINDOW_SIZE = [NUMB_X_CELLS*WIDTH + MARGIN*NUMB_X_CELLS, NUMB_Y_CELLS*HEIGHT + MARGIN*NUMB_Y_CELLS]
-##############################
+###############################
 
-
+# checks if coord is white road
 def isroad(row_index: int, column_index: int) -> bool:
 
     # Calculate the adjusted row and column indices (accounts for an offset of 2 cells for every row/column)
-    adjusted_row = row_index - 2 * max(row_index // 15 - 1, 0)
-    adjusted_column = column_index - 2 * max(column_index // 15 - 1, 0)
+    adjusted_row = row_index - 2 * max(row_index // GREY_SIZE - 1, 0)
+    adjusted_column = column_index - 2 * max(column_index // GREY_SIZE - 1, 0)
 
     # Check if the cell is white
-    is_white_row = adjusted_row % 15 in {0, 1} and row_index not in {0, 1}
-    is_white_column = adjusted_column % 15 in {0, 1} and column_index not in {0, 1}
+    is_white_row = adjusted_row % GREY_SIZE in {0, 1} and row_index not in {0, 1}
+    is_white_column = adjusted_column % GREY_SIZE in {0, 1} and column_index not in {0, 1}
 
     # Return True if either the row or column satisfies the condition
     return is_white_row or is_white_column
+
+# returns list of agents
+def init_agents(agent_num:int, NUMB_X_CELLS=NUMB_X_CELLS, NUMB_Y_CELLS=NUMB_Y_CELLS) -> list[Agent]:
+    agent_coords = []
+
+    # possible coordinates an agent can have (GREY_SIZE because that is the length of roads split by junctions non-inclusive)
+    possible_x_coords = [x+2*(x//GREY_SIZE-1) for x in range(GREY_SIZE, NUMB_X_CELLS, GREY_SIZE)]
+    possible_y_coords = [y+2*(y//GREY_SIZE-1) for y in range(GREY_SIZE, NUMB_Y_CELLS, GREY_SIZE)]
+
+    # for a in range(agent_num):
+        
 
 # MAKES GAME GRID
 def make_grid(NUMB_X_CELLS: int, NUMB_Y_CELLS: int) -> npt.NDArray[np.int64]:
     grid = np.zeros((NUMB_X_CELLS, NUMB_Y_CELLS), dtype=int)
 
-    for idx in range(15, NUMB_X_CELLS, 15):
-        idx_adj = idx + 2*(idx//15-1)
+    for idx in range(GREY_SIZE, NUMB_X_CELLS, GREY_SIZE):
+        idx_adj = idx + 2*(idx//GREY_SIZE-1)
         if idx_adj >= NUMB_X_CELLS: continue
         grid[:, idx_adj] += 1
         grid[:, idx_adj+1] += 1
@@ -64,10 +79,16 @@ def make_grid(NUMB_X_CELLS: int, NUMB_Y_CELLS: int) -> npt.NDArray[np.int64]:
         grid[idx_adj+1, :] += 1
     return grid
 
+# main loop
 def game_loop(grid: npt.NDArray[np.int64]) -> None:
+
+    # initialise pygame
     pg.init()
+
     end = False
-    screen = pg.display.set_mode(WINDOW_SIZE, pg.RESIZABLE) # surface
+
+    screen = pg.display.set_mode(WINDOW_SIZE, pg.RESIZABLE) # surface i.e. the window
+
     pg.display.set_caption("simple traffic simulation") # set window title
     
     clock = pg.time.Clock() # Used to manage how fast the screen updates

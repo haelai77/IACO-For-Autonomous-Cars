@@ -1,4 +1,3 @@
-
 import numpy.typing as npt
 import numpy as np
 import pygame as pg
@@ -15,9 +14,11 @@ class Agent:
         self.ID = ID
         self.route = None
 
-    def move(self): # caluclates next move based on pheremones and the next local best step 
+    def move(self, direction): # caluclates next move based on pheremones and the next local best step 
         # check if at junction
         # 
 
         return
+    
+
     
