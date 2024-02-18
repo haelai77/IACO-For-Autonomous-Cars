@@ -87,7 +87,7 @@ def env_loop(grid: Grid, agents: list[Agent], visualise = True) -> None:
         pg.quit()
 
 grid = Grid()
-agent = grid.generate_agents(guarantee=4)
+agent = grid.generate_agents(guarantee=1)
 # agent = [Agent(grid=grid, src=(50,99, "e"))]
 
 env_loop(grid=grid, agents=agent)

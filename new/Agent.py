@@ -51,20 +51,19 @@ class Agent:
         print(self.src, self.dst, self.dst_side)
         print("begin", self.moveset)
         
-        self.alt_dist = {("n", "w"), ("e", "n"), ("s", "e"), ("w", "s")}
-        self.alt_dist2 = {
-            ("n", "s"): lambda: self.src[1] > self.dst[1], 
-            ("e", "w"): lambda: self.src[0] > self.dst[1], 
-            ("s", "n"): lambda: self.src[1] < self.dst[1], 
-            ("w", "e"): lambda: self.src[0] < self.dst[0]}
+        self.alt_dist = {
+            ("n", "w"): 1,
+            ("e", "n"): 1,
+            ("s", "e"): 1,
+            ("w", "s"): 1,
+            ("n", "s"): self.src[1] > self.dst[1], 
+            ("e", "w"): self.src[0] > self.dst[1], 
+            ("s", "n"): self.src[1] < self.dst[1], 
+            ("w", "e"): self.src[0] < self.dst[0]}
 
         self.final_road_len = grid.BLOCK_SIZE
         if (self.src_side, self.dst_side) in self.alt_dist:
-            self.final_road_len += 1
-            print("a:",(self.src_side, self.dst_side))
-        elif (self.src_side, self.dst_side) in self.alt_dist:
-            self.final_road_len += self.alt_dist2[(self.src_side, self.dst_side)]()
-            print("b:",(self.src_side, self.dst_side))
+            self.final_road_len += self.alt_dist[(self.src_side, self.dst_side)]
                 
         # determines how which junction associated with the exit is calculated
         self.exit_junc_type = {
@@ -74,6 +73,13 @@ class Agent:
             "w": (0, self.final_road_len)}
         
         self.exit_junc = (np.add(self.dst, self.exit_junc_type[self.dst_side])) # retrieves element instantiated in loop yikes
+
+        self.diag_check = {
+            "n": (-1,  1),
+            "s": ( 1, -1),
+            "e": ( 1,  1),
+            "w": (-1, -1)
+        }
 
     def _init_dst(self):
         '''finds suitable destination and sets current direction'''
@@ -85,9 +91,6 @@ class Agent:
                 self.dst = dst_choice[:2]
                 self.direction = self.grid.grid[self.src]
                 self.dst_side = dst_choice[2]
-        #todo remove
-        # self.dst = (99,50)
-        # self.dst_side = "s"
         
     def _init_moveset(self):
         '''sets up moveset and possible intercardinal directions'''
@@ -110,8 +113,24 @@ class Agent:
             self.intercard_move["sw"].add("w")
             self.intercard_move["nw"].add("w")
 
-    def possible_move(self, move):
-        pass
+    def possible_move(self, move_result) ->  bool:
+        '''checks if move is good and updates location in tracking grid'''
+        next_cell = self.grid.tracker[move_result[0], move_result[1]]
+        
+        # if next square is an intercardinal cell we want to check the top right adjacent cell relative to direction of travel of agent
+        if self.grid.grid[move_result[0], move_result[1]] in self.intercard_move: 
+            diag = np.add(self.diag_check[self.direction], self.grid_coord)
+            if not self.grid.tracker[diag[0], diag[1]]: # if relative top right diagonal cell is empty in junction
+                self.grid.tracker[self.grid_coord[0], self.grid_coord[1]] = None
+                self.grid.tracker[move_result[0], move_result[1]] = self
+                return True
+
+        elif not next_cell: # if next cell is empty and you're on a straight road
+            self.grid.tracker[self.grid_coord[0], self.grid_coord[1]] = None
+            self.grid.tracker[move_result[0], move_result[1]] = self
+            return True
+            
+        return False
 
     def move(self):
         '''currently does move based with a probability of selecting turn randomly -> this will eventually be influenced by pheromones'''
