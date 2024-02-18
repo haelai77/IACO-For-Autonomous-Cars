@@ -45,10 +45,10 @@ class Grid():
 
         return grid
 
-    def generate_agents(self, round_density = 2, guarantee_1 = False):
+    def generate_agents(self, round_density = 2, guarantee=0):
         '''generates agents at every time step and intialises them with a source'''
-        if guarantee_1:
-            return [Agent(random.choice(self.entrances), grid=self)]
+        if guarantee:
+            return [Agent(random.choice(self.entrances), grid=self) for i in range(guarantee)]
 
         sources = []
         probability = round_density/len(self.entrances) 

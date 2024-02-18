@@ -82,24 +82,12 @@ def env_loop(grid: Grid, agents: list[Agent], visualise = True) -> None:
                              grid.CELL_SIZE,   # width of rect
                              grid.CELL_SIZE])  # height of rect
                 
-            # draw exits
-            # for e in grid.exits:
-            #     row = e[0]
-            #     col = e[1]
-            #     pg.draw.rect(screen,
-            #                 RED,
-            #                 [(grid.MARGIN + grid.CELL_SIZE) * col + grid.MARGIN, # top y coord 
-            #                  (grid.MARGIN + grid.CELL_SIZE) * row + grid.MARGIN, # top x left
-            #                  grid.CELL_SIZE,   # width of rect
-            #                  grid.CELL_SIZE])  # height of rect
-                
-
             clock.tick(60) # fps
             pg.display.flip() # draws new frame
         pg.quit()
 
 grid = Grid()
-agent = grid.generate_agents(guarantee_1=True)
+agent = grid.generate_agents(guarantee=4)
 # agent = [Agent(grid=grid, src=(50,99, "e"))]
 
 env_loop(grid=grid, agents=agent)

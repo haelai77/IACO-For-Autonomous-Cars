@@ -141,11 +141,8 @@ class Agent:
         
         # removes possible move from junction if moveset deems it impossible
         if self.moveset[move_choice] == 0 and tuple(self.grid_coord) != self.dst:
-            print("removed junction possibility due to lacking of moves")
             for junc_cell in self.remove_opt[move_choice]:
-                print(junc_cell, move_choice)
                 self.intercard_move[junc_cell].remove(move_choice)
-                print(f"removed {move_choice} fom {self.intercard_move[junc_cell]}")
 
 
 
