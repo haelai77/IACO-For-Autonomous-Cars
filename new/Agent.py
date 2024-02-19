@@ -4,16 +4,19 @@ import numpy.typing as npt
 
 class Agent:
     def __init__(self, src, grid=None, ID=None) -> None:
+        self.edge_junc: list[tuple] = [] #todo tmp? edge junc? huh?
 
         # grid related attributes
         self.src: tuple = src[:2] # starting coordinates
         self.src_side = src[2] # not to be confused with direction of travel
-        self.dst: tuple = None # ending coordinates
-        self.dst_side = None
-        self.exit_junc = None
         
         self.grid = grid # grid with roads representing directions
         self.grid_coord: tuple = self.src # current coordinate in cell
+
+        self.dst: tuple = None # ending coordinates
+        self.dst_side = None
+        self.exit_junc = None
+        self._init_dst() # randomly assigns a possible destination
 
         # agent attributes
         self.ID = ID 
@@ -38,17 +41,13 @@ class Agent:
             "nw": set(), # "n", "w"
             "se": set(), # "s", "e"
             "sw": set()} # "s", "w"
-        # determines which possible moves at junction are available
+        # determines which turns are possible at a junction 
         self.remove_opt = {
             "n": ["ne", "nw"],
             "s": ["se", "sw"],
             "e": ["ne", "se"],
             "w": ["nw", "sw"],}
-        
-        self._init_dst() # randomly assigns a possible destination
-
-        self._init_moveset() # calculates the moves required to get to destination
-
+        # determines the length of the final road
         self.alt_dist = {
             ("n", "w"): 1,
             ("e", "n"): 1,
@@ -58,25 +57,26 @@ class Agent:
             ("e", "w"): self.src[0] < self.dst[0], 
             ("s", "n"): self.src[1] > self.dst[1], 
             ("w", "e"): self.src[0] > self.dst[0]}
-
-        self.final_road_len = grid.BLOCK_SIZE
-        if (self.src_side, self.dst_side) in self.alt_dist:
-            self.final_road_len += self.alt_dist[(self.src_side, self.dst_side)]
-                
+        
         # determines how which junction associated with the exit is calculated
+        self.final_road_len = grid.BLOCK_SIZE
+        if (self.src_side, self.dst_side) in self.alt_dist: self.final_road_len += self.alt_dist[(self.src_side, self.dst_side)]
+
         self.exit_junc_type = {
             "n": (self.final_road_len, 0),
             "s": (-self.final_road_len, 0),
             "e": (0, -self.final_road_len),
             "w": (0, self.final_road_len)}
         
-        self.exit_junc = (np.add(self.dst, self.exit_junc_type[self.dst_side])) # retrieves element instantiated in loop yikes
-
         self.diag_check = {
             "n": (-1,  1),
             "s": ( 1, -1),
             "e": ( 1,  1),
             "w": (-1, -1)}
+        
+        self._init_moveset() # calculates the moves required to get to destination
+                
+        self.exit_junc = (np.add(self.dst, self.exit_junc_type[self.dst_side])) # retrieves element instantiated in loop yikes
 
     def _init_dst(self):
         '''finds suitable destination and sets current direction'''
@@ -112,18 +112,14 @@ class Agent:
 
     def possible_move(self, move_result) ->  bool:
         '''checks if move is good and updates location in tracking grid'''
-
         next_cell = self.grid.tracker[move_result[0], move_result[1]]
-        
         # if next square is an intercardinal cell we want to check the top right adjacent cell relative to direction of travel of agent
-        #todo need to keep track of previous one as well to tell if you're just entering the junction
         if self.direction in self.cardinal_move and self.grid.grid[move_result[0], move_result[1]] in self.intercard_move and not next_cell:
             diag = np.add(self.diag_check[self.direction], self.grid_coord)
             if not self.grid.tracker[diag[0], diag[1]]: # if relative top right diagonal cell is empty in junction
                 self.grid.tracker[self.grid_coord[0], self.grid_coord[1]] = None
                 self.grid.tracker[move_result[0], move_result[1]] = self
                 return False
-
         elif not next_cell: # if next cell is empty and you're on a straight road
             self.grid.tracker[self.grid_coord[0], self.grid_coord[1]] = None
             self.grid.tracker[move_result[0], move_result[1]] = self
@@ -131,22 +127,55 @@ class Agent:
             
         return True
 
+    def pheromone_lft(self):
+        #todo
+        pass
+
+    def pheromone_fwd(self):
+        #todo
+        pass
+
+    def compare_pheronomes(self, ag1, ag2):
+        '''returns a direction based on either agent or random '''
+        #todo
+        pass
+
+    def pheromone_choice(self):
+        '''only used at junctions, should take into account whether or not you're at exit junction'''
+        # todo should also update
+        #####################
+        # if current direction is in intercard
+            # based on intercard iterate in different diretions
+                # take first 2 agents on either choice and make decision considering either
+        ##################### 
+        if tuple(self.grid_coord) in self.edge_junc: #todo needs function for calculating edge junctions that aren't the exit junction can be done in the grid obj and the exit junc just removed from the list
+            # return the other option
+            #todo
+            pass
+        elif self.direction in self.intercard_move:
+            left_agent = self.pheromone_lft()
+            fwd_agent = self.pheromone_fwd()
+            
+            if left_agent and fwd_agent: # return better of 2 paths
+                return self.compare_pheromones()
+            else: # return random choice if no agents in adjacent roads
+                return random.choice(list(self.intercard_move[self.direction]))
+            
+    def update_pheromone(self):
+        pass
+
     def move(self):
         '''currently does move based with a probability of selecting turn randomly -> this will eventually be influenced by pheromones'''
-
-        #todo make this return an event that removes this agent
-        if self.dst == tuple(self.grid_coord):
-            return
-        move_choice = None
+        if self.dst == tuple(self.grid_coord):return # todo make it trigger event to remove agent
         # case 1: straight road -> move ahead if possible
         if self.direction in self.moveset and self.moveset[self.direction] > 0: # if cardinal direction and possible to move
             move_choice = self.direction
-
         # case 2: you're in a junction select a direction at random, if choice is wrong exit change choice
         elif self.direction in self.intercard_move:
-            # todo current randomly choice needs permutations
+            # todo current randomly choice will eventually include pheromone 
             move_choice = random.choice(list(self.intercard_move[self.direction]))
             # if move_choice can't be done yet i.e. at edge of grid
+            # todo calculate edge junctions instead?
             if self.moveset[move_choice] == self.final_road_len and move_choice == self.dst_side and tuple(self.grid_coord) != tuple(self.exit_junc): #todo what is this monstrosity, short-circuiting so its alright?  //// and self.dst_side == move_choice
                 # print("##############")
                 # print(f"move_set: {self.moveset}")
@@ -162,8 +191,6 @@ class Agent:
                 move_choice = copy_moveset.pop() 
                 
         if self.possible_move(np.add(self.grid_coord, self.cardinal_move[move_choice])): return
-        if move_choice == None: # todo remove
-            return
 
         self.moveset[move_choice] -= 1 # update moveset
         self.grid_coord = np.add(self.grid_coord, self.cardinal_move[move_choice]) # update grid coordinate
