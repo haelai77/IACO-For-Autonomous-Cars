@@ -46,6 +46,7 @@ class Agent:
             "w": ["nw", "sw"],}
         
         self._init_dst() # randomly assigns a possible destination
+
         self._init_moveset() # calculates the moves required to get to destination
 
         self.alt_dist = {
@@ -53,8 +54,8 @@ class Agent:
             ("e", "n"): 1,
             ("s", "e"): 1,
             ("w", "s"): 1,
-            ("n", "s"): self.src[1] > self.dst[1], 
-            ("e", "w"): self.src[0] > self.dst[1], 
+            ("n", "s"): self.src[1] < self.dst[1], 
+            ("e", "w"): self.src[0] < self.dst[0], 
             ("s", "n"): self.src[1] < self.dst[1], 
             ("w", "e"): self.src[0] < self.dst[0]}
 
@@ -149,7 +150,9 @@ class Agent:
             if self.moveset[move_choice] == self.final_road_len and move_choice == self.dst_side and tuple(self.grid_coord) != tuple(self.exit_junc): #todo what is this monstrosity, short-circuiting so its alright?  //// and self.dst_side == move_choice
                 print("##############")
                 print(f"move_set: {self.moveset}")
-                print(f"attempted move: {self.moveset}")
+                print(f"currnt dirction:{self.direction}")
+                print(f"attempted move: {move_choice}")
+                print(f"final road len: {self.final_road_len}")
                 print("##############")
                 copy_moveset  = self.intercard_move[self.direction].copy()
                 copy_moveset.remove(move_choice)
@@ -167,6 +170,7 @@ class Agent:
         
         # removes possible move from junction if moveset deems it impossible
         if self.moveset[move_choice] == 0 and tuple(self.grid_coord) != self.dst:
+            print("popped option")
             for junc_cell in self.remove_opt[move_choice]:
                 self.intercard_move[junc_cell].remove(move_choice)
 

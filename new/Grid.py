@@ -72,13 +72,11 @@ class Grid():
             j = i + 1 
 
             self.entrances.append( (0, j, "n") ) # top entrance
-            self.entrances.append( (j, self.CELLS_IN_WIDTH-1, "e") ) # right entrance
-            self.entrances.append( (i, 0, "w") ) # left entrance
-            self.entrances.append( (self.CELLS_IN_HEIGHT-1, i, "s") ) # bottom entrance
+            # self.entrances.append( (j, self.CELLS_IN_WIDTH-1, "e") ) # right entrance
+            # self.entrances.append( (i, 0, "w") ) # left entrance
+            # self.entrances.append( (self.CELLS_IN_HEIGHT-1, i, "s") ) # bottom entrance
 
-            self.exits.append( (0, i, "n") ) # top exit
-            self.exits.append( (i, self.CELLS_IN_WIDTH-1, "e") ) # right exit
-            self.exits.append( (j, 0, "w") ) # left exit
+            # self.exits.append( (0, i, "n") ) # top exit
+            # self.exits.append( (i, self.CELLS_IN_WIDTH-1, "e") ) # right exit
+            # self.exits.append( (j, 0, "w") ) # left exit
             self.exits.append( (self.CELLS_IN_HEIGHT-1, j, "s") ) # bottom exit
-
-        print(self.exits)
