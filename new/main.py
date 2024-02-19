@@ -86,8 +86,8 @@ def env_loop(grid: Grid, agents: list[Agent], visualise = True) -> None:
             pg.display.flip() # draws new frame
         pg.quit()
 
-grid = Grid(num_roads_on_axis = 2)
-agent = grid.generate_agents(guarantee=1)
+grid = Grid(num_roads_on_axis = 5)
+agent = grid.generate_agents(guarantee=100)
 # agent = [Agent(grid=grid, src=(0, 16, "n"))]
 
 env_loop(grid=grid, agents=agent)

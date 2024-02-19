@@ -56,8 +56,8 @@ class Agent:
             ("w", "s"): 1,
             ("n", "s"): self.src[1] < self.dst[1], 
             ("e", "w"): self.src[0] < self.dst[0], 
-            ("s", "n"): self.src[1] < self.dst[1], 
-            ("w", "e"): self.src[0] < self.dst[0]}
+            ("s", "n"): self.src[1] > self.dst[1], 
+            ("w", "e"): self.src[0] > self.dst[0]}
 
         self.final_road_len = grid.BLOCK_SIZE
         if (self.src_side, self.dst_side) in self.alt_dist:
@@ -153,6 +153,9 @@ class Agent:
                 print(f"currnt dirction:{self.direction}")
                 print(f"attempted move: {move_choice}")
                 print(f"final road len: {self.final_road_len}")
+                print(f"src {self.src} {self.src_side}, dst {self.dst} {self.dst_side}")
+                print(f"card dict: {self.intercard_move}")
+                print(f"grid coord: {self.grid_coord}")
                 print("##############")
                 copy_moveset  = self.intercard_move[self.direction].copy()
                 copy_moveset.remove(move_choice)
