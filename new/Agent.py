@@ -148,22 +148,21 @@ class Agent:
             move_choice = random.choice(list(self.intercard_move[self.direction]))
             # if move_choice can't be done yet i.e. at edge of grid
             if self.moveset[move_choice] == self.final_road_len and move_choice == self.dst_side and tuple(self.grid_coord) != tuple(self.exit_junc): #todo what is this monstrosity, short-circuiting so its alright?  //// and self.dst_side == move_choice
-                print("##############")
-                print(f"move_set: {self.moveset}")
-                print(f"currnt dirction:{self.direction}")
-                print(f"attempted move: {move_choice}")
-                print(f"final road len: {self.final_road_len}")
-                print(f"src {self.src} {self.src_side}, dst {self.dst} {self.dst_side}")
-                print(f"card dict: {self.intercard_move}")
-                print(f"grid coord: {self.grid_coord}")
-                print("##############")
+                # print("##############")
+                # print(f"move_set: {self.moveset}")
+                # print(f"currnt dirction:{self.direction}")
+                # print(f"attempted move: {move_choice}")
+                # print(f"final road len: {self.final_road_len}")
+                # print(f"src {self.src} {self.src_side}, dst {self.dst} {self.dst_side}")
+                # print(f"card dict: {self.intercard_move}")
+                # print(f"grid coord: {self.grid_coord}")
+                # print("##############")
                 copy_moveset  = self.intercard_move[self.direction].copy()
                 copy_moveset.remove(move_choice)
                 move_choice = copy_moveset.pop() 
                 
         if self.possible_move(np.add(self.grid_coord, self.cardinal_move[move_choice])): return
         if move_choice == None: # todo remove
-            print(f"move choice is none, moveset: {self.moveset}")
             return
 
         self.moveset[move_choice] -= 1 # update moveset
@@ -173,7 +172,6 @@ class Agent:
         
         # removes possible move from junction if moveset deems it impossible
         if self.moveset[move_choice] == 0 and tuple(self.grid_coord) != self.dst:
-            print("popped option")
             for junc_cell in self.remove_opt[move_choice]:
                 self.intercard_move[junc_cell].remove(move_choice)
 
