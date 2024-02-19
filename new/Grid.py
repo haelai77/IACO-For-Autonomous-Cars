@@ -20,6 +20,7 @@ class Grid():
                             self.CELLS_IN_HEIGHT * self.CELL_SIZE + self.MARGIN*self.CELLS_IN_HEIGHT]
 
         self.grid: npt.NDArray[np.int64] = self.init_grid()
+        self.tracker: npt.NDArray[np.int64] = np.full(shape=(self.CELLS_IN_WIDTH, self.CELLS_IN_HEIGHT), dtype=object, fill_value=None)
         self.entrances: list[tuple] = [] # (y,x)
         self.exits: list[tuple] = []
 

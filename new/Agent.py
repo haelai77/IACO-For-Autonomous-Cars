@@ -48,9 +48,6 @@ class Agent:
         self._init_dst() # randomly assigns a possible destination
         self._init_moveset() # calculates the moves required to get to destination
 
-        print(self.src, self.dst, self.dst_side)
-        print("begin", self.moveset)
-        
         self.alt_dist = {
             ("n", "w"): 1,
             ("e", "n"): 1,
@@ -78,8 +75,7 @@ class Agent:
             "n": (-1,  1),
             "s": ( 1, -1),
             "e": ( 1,  1),
-            "w": (-1, -1)
-        }
+            "w": (-1, -1)}
 
     def _init_dst(self):
         '''finds suitable destination and sets current direction'''
@@ -115,22 +111,24 @@ class Agent:
 
     def possible_move(self, move_result) ->  bool:
         '''checks if move is good and updates location in tracking grid'''
+
         next_cell = self.grid.tracker[move_result[0], move_result[1]]
         
         # if next square is an intercardinal cell we want to check the top right adjacent cell relative to direction of travel of agent
-        if self.grid.grid[move_result[0], move_result[1]] in self.intercard_move: 
+        #todo need to keep track of previous one as well to tell if you're just entering the junction
+        if self.direction in self.cardinal_move and self.grid.grid[move_result[0], move_result[1]] in self.intercard_move and not next_cell:
             diag = np.add(self.diag_check[self.direction], self.grid_coord)
             if not self.grid.tracker[diag[0], diag[1]]: # if relative top right diagonal cell is empty in junction
                 self.grid.tracker[self.grid_coord[0], self.grid_coord[1]] = None
                 self.grid.tracker[move_result[0], move_result[1]] = self
-                return True
+                return False
 
         elif not next_cell: # if next cell is empty and you're on a straight road
             self.grid.tracker[self.grid_coord[0], self.grid_coord[1]] = None
             self.grid.tracker[move_result[0], move_result[1]] = self
-            return True
+            return False
             
-        return False
+        return True
 
     def move(self):
         '''currently does move based with a probability of selecting turn randomly -> this will eventually be influenced by pheromones'''
@@ -138,23 +136,32 @@ class Agent:
         #todo make this return an event that removes this agent
         if self.dst == tuple(self.grid_coord):
             return
-
+        move_choice = None
         # case 1: straight road -> move ahead if possible
         if self.direction in self.moveset and self.moveset[self.direction] > 0: # if cardinal direction and possible to move
             move_choice = self.direction
 
-        # case 2: you're in a junction
+        # case 2: you're in a junction select a direction at random, if choice is wrong exit change choice
         elif self.direction in self.intercard_move:
             # todo current randomly choice needs permutations
             move_choice = random.choice(list(self.intercard_move[self.direction]))
             # if move_choice can't be done yet i.e. at edge of grid
             if self.moveset[move_choice] == self.final_road_len and move_choice == self.dst_side and tuple(self.grid_coord) != tuple(self.exit_junc): #todo what is this monstrosity, short-circuiting so its alright?  //// and self.dst_side == move_choice
+                print("##############")
+                print(f"move_set: {self.moveset}")
+                print(f"attempted move: {self.moveset}")
+                print("##############")
                 copy_moveset  = self.intercard_move[self.direction].copy()
                 copy_moveset.remove(move_choice)
                 move_choice = copy_moveset.pop() 
                 
+        if self.possible_move(np.add(self.grid_coord, self.cardinal_move[move_choice])): return
+        if move_choice == None: # todo remove
+            print(f"move choice is none, moveset: {self.moveset}")
+            return
+
         self.moveset[move_choice] -= 1 # update moveset
-        self.grid_coord = np.add(self.grid_coord, self.cardinal_move[move_choice], ) # update grid coordinate
+        self.grid_coord = np.add(self.grid_coord, self.cardinal_move[move_choice]) # update grid coordinate
         self.direction = self.grid.grid[self.grid_coord[0], self.grid_coord[1]] # update direction
         self.steps += 1
         
