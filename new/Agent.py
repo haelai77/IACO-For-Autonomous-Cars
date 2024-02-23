@@ -26,31 +26,35 @@ class Agent:
         self.direction = self.grid.grid[self.src] # direction of current cell
         self.steps = 0 # number of steps taken
 
-        # number of possible steps able to be taken
+        # the number of possible moves to move in each direction
         self.moveset = {
             "n": 0,
             "s": 0,
             "e": 0,
             "w": 0}
-        # determines how coord is updated after move (add this to go in )
+        
+        # how the grid coordinate is updated when travelling in each of these directions
         self.cardinal_move = {
             "n": (-1,  0),
             "s": ( 1,  0),
             "e": ( 0,  1),
             "w": ( 0, -1)}
-        # determines possible moves at junction
+        
+        # holds the possible move at each junction
         self.intercard_move = {
             "ne": set(), # "n", "e"
             "nw": set(), # "n", "w"
             "se": set(), # "s", "e"
             "sw": set()} # "s", "w"
-        # determines which turns are possible at a junction 
+        
+        # to remove possible moves from self.intercard_move, e.g. if you ran out of north moves, n, you would look in the "ne" and "nw" sections fo intercard_move to remove north from the associated sets
         self.remove_opt = {
             "n": ["ne", "nw"],
             "s": ["se", "sw"],
             "e": ["ne", "se"],
             "w": ["nw", "sw"],}
-        # determines the length of the final road
+        
+        # determines whether the final stretch of road is self.grid.BLOCK_SIZE or self.grid.BLOCK_SIZE + 1 
         self.alt_dist = {
             ("n", "w"): 1,
             ("e", "n"): 1,
@@ -61,16 +65,18 @@ class Agent:
             ("s", "n"): self.src[1] > self.dst[1], 
             ("w", "e"): self.src[0] > self.dst[0]}
         
-        # determines how which junction associated with the exit is calculated
+        # calculates the length of the final stretch of "road"
         self.final_road_len = grid.BLOCK_SIZE
         if (self.src_side, self.dst_side) in self.alt_dist: self.final_road_len += self.alt_dist[(self.src_side, self.dst_side)]
 
+        # for calculating which junction is associated with the exit
         self.exit_junc_type = {
             "n": (self.final_road_len, 0),
             "s": (-self.final_road_len, 0),
             "e": (0, -self.final_road_len),
             "w": (0, self.final_road_len)}
         
+        # for checking diagonal cell when entering junction
         self.diag_check = {
             "n": (-1,  1),
             "s": ( 1, -1),
@@ -173,34 +179,26 @@ class Agent:
                 back_step = np.subtract(self.grid, self.cardinal_move[self.direction])
                 cell = self.grid.tracker[back_step[0], back_step[1]]
                 if cell:
-                    return (cell, pheromone) # return agent behind and pheromone it needs to update
+                    return [(cell, pheromone)] # return agent behind and pheromone it needs to update
                 elif 0 in back_step or self.CELLS_IN_WIDTH in back_step:
                     return None
         
         elif self.diretion in self.intercard_move:
-              while True:
-                  directions = self.intercard_move[self.direction]
-                  
+            counter = 0
+            agents_in_direction = [self.grid_coord] * 2 # agents in either direction the 
+            while counter != 2:
+                directions = self.direction # possible directions to check in
 
-
-        # # 2 cases straight road or on junction 
-        # # straight road
-        # # junction cell -> forwards or [turn based on junction cell type]
-        # pheromone = None #todo calculate pheromone
-
-        # if self.direction in self.cardinal_move:
-        #     while True:
-        #         back_step = np.subtract(self.grid, self.cardinal_move[self.direction])
-        #         cell = self.grid.tracker[back_step[0], back_step[1]]
-        #         if cell:
-        #             return (cell, pheromone)
-        # elif self.direction in self.intercard_move:
-        #     adjacent_directions =[self.grid_coord] * 2
-        #     while True:
-        #         for i, direction in enumerate(self.intercard_move[self.direction]):
-        #             if not adjacent_directions[i]:
-                            
-        # pass
+                for index, direction in enumerate(directions):  
+                    # if agent not found in direction yet and not at edge of grid
+                    # todo fix this, (doesn't actually catch the agents, it just failes LMAO)
+                    if not agents_in_direction[index][0] not in {0, self.grid.CELLS_IN_WIDTH-1} and agents_in_direction[index][1] not in {0, self.grid.CELLS_IN_HEIGHT-1}:
+                        # a back step from where self (agent) is
+                        back_step = np.subtract(agents_in_direction[index], self.cardinal_move[direction])
+                        if self.grid.tracker[back_step[0], back_step[1]]:
+                            agents_in_direction[index] = self.grid.tracker[back_step[0], back_step[1]]
+                            counter += 1
+            return map(lambda x: (x, pheromone/len(agents_in_direction)), agents_in_direction)
 
     def move(self):
         '''currently does move based with a probability of selecting turn randomly -> this will eventually be influenced by pheromones'''
