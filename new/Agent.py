@@ -4,6 +4,9 @@ import numpy.typing as npt
 
 class Agent:
     def __init__(self, src, grid=None, ID=None) -> None:
+        self.pheromone = 0
+        self.delay = 0
+
         self.edge_junc: list[tuple] = [] #todo tmp? edge junc? huh?
 
         # grid related attributes
@@ -29,7 +32,7 @@ class Agent:
             "s": 0,
             "e": 0,
             "w": 0}
-        # determines how coord is updated after move
+        # determines how coord is updated after move (add this to go in )
         self.cardinal_move = {
             "n": (-1,  0),
             "s": ( 1,  0),
@@ -161,8 +164,43 @@ class Agent:
             else: # return random choice if no agents in adjacent roads
                 return random.choice(list(self.intercard_move[self.direction]))
             
-    def update_pheromone(self):
-        pass
+    def spread_pheromone(self) -> tuple[int]:
+        '''returns tuple of (agent, pheromone update value)'''
+        pheromone = None #todo calculate pheromone
+
+        if self.direction in self.cardinal_move: # if on straight road
+            while True:
+                back_step = np.subtract(self.grid, self.cardinal_move[self.direction])
+                cell = self.grid.tracker[back_step[0], back_step[1]]
+                if cell:
+                    return (cell, pheromone) # return agent behind and pheromone it needs to update
+                elif 0 in back_step or self.CELLS_IN_WIDTH in back_step:
+                    return None
+        
+        elif self.diretion in self.intercard_move:
+              while True:
+                  directions = self.intercard_move[self.direction]
+                  
+
+
+        # # 2 cases straight road or on junction 
+        # # straight road
+        # # junction cell -> forwards or [turn based on junction cell type]
+        # pheromone = None #todo calculate pheromone
+
+        # if self.direction in self.cardinal_move:
+        #     while True:
+        #         back_step = np.subtract(self.grid, self.cardinal_move[self.direction])
+        #         cell = self.grid.tracker[back_step[0], back_step[1]]
+        #         if cell:
+        #             return (cell, pheromone)
+        # elif self.direction in self.intercard_move:
+        #     adjacent_directions =[self.grid_coord] * 2
+        #     while True:
+        #         for i, direction in enumerate(self.intercard_move[self.direction]):
+        #             if not adjacent_directions[i]:
+                            
+        # pass
 
     def move(self):
         '''currently does move based with a probability of selecting turn randomly -> this will eventually be influenced by pheromones'''
