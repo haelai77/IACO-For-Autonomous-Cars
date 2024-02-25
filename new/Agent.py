@@ -3,7 +3,7 @@ import numpy as np
 import numpy.typing as npt
 
 class Agent:
-    def __init__(self, src, grid=None, ID=None) -> None:
+    def __init__(self, src, grid=None, ID=None, ) -> None:
         self.pheromone = 0
         self.delay = 0
 
@@ -15,6 +15,7 @@ class Agent:
         
         self.grid = grid # grid with roads representing directions
         self.grid_coord: tuple = self.src # current coordinate in cell
+        self.grid.tracker[self.grid_coord] = self
 
         self.dst: tuple = None # ending coordinates
         self.dst_side = None
@@ -24,6 +25,9 @@ class Agent:
         # agent attributes
         self.ID = ID 
         self.direction = self.grid.grid[self.src] # direction of current cell
+        self.prev_direction = self.direction
+        self.prev_direction = "s"#todo remove
+
         self.steps = 0 # number of steps taken
 
         # the number of possible moves to move in each direction
@@ -120,7 +124,10 @@ class Agent:
             self.intercard_move["nw"].add("w")
 
     def possible_move(self, move_result) ->  bool:
-        '''checks if move is good and updates location in tracking grid'''
+        '''
+        checks if move is good and updates location in tracking grid
+        -> returning false is a good thing i.e. the move is possible
+        '''
         next_cell = self.grid.tracker[move_result[0], move_result[1]]
         # if next square is an intercardinal cell we want to check the top right adjacent cell relative to direction of travel of agent
         if self.direction in self.cardinal_move and self.grid.grid[move_result[0], move_result[1]] in self.intercard_move and not next_cell:
@@ -133,7 +140,6 @@ class Agent:
             self.grid.tracker[self.grid_coord[0], self.grid_coord[1]] = None
             self.grid.tracker[move_result[0], move_result[1]] = self
             return False
-            
         return True
 
     def pheromone_lft(self):
@@ -171,65 +177,68 @@ class Agent:
                 return random.choice(list(self.intercard_move[self.direction]))
             
     def spread_pheromone(self) -> tuple[int]:
-        '''returns tuple of (agent, pheromone update value)'''
-        pheromone = None #todo calculate pheromone
+        '''returns list of tuple/iterator of (agent, pheromone update value)'''
+        pheromone = 1 #todo calculate pheromone
+        
 
         if self.direction in self.cardinal_move: # if on straight road
+            next_check = np.subtract(self.grid_coord, self.cardinal_move[self.direction]) # only need to subtract
             while True:
-                back_step = np.subtract(self.grid, self.cardinal_move[self.direction])
-                cell = self.grid.tracker[back_step[0], back_step[1]]
-                if cell:
-                    return [(cell, pheromone)] # return agent behind and pheromone it needs to update
-                elif 0 in back_step or self.CELLS_IN_WIDTH in back_step:
-                    return None
-        
-        elif self.diretion in self.intercard_move:
-            counter = 0
-            agents_in_direction = [self.grid_coord] * 2 # agents in either direction the 
-            while counter != 2:
-                directions = self.direction # possible directions to check in
+                if not (0 <= next_check[0] <= self.grid.CELLS_IN_HEIGHT-1 and 0 <= next_check[1] <= self.grid.CELLS_IN_WIDTH-1): # if not within bounds
+                    return []
+                else:
+                    cell = self.grid.tracker[next_check[0], next_check[1]]
+                    if cell: return [(cell.ID, pheromone)] # return agent behind and pheromone it needs to update
+                    next_check = np.subtract(next_check, self.cardinal_move[self.direction])
 
-                for index, direction in enumerate(directions):  
-                    # if agent not found in direction yet and not at edge of grid
-                    # todo fix this, (doesn't actually catch the agents, it just failes LMAO)
-                    if not agents_in_direction[index][0] not in {0, self.grid.CELLS_IN_WIDTH-1} and agents_in_direction[index][1] not in {0, self.grid.CELLS_IN_HEIGHT-1}:
-                        # a back step from where self (agent) is
-                        back_step = np.subtract(agents_in_direction[index], self.cardinal_move[direction])
-                        if self.grid.tracker[back_step[0], back_step[1]]:
-                            agents_in_direction[index] = self.grid.tracker[back_step[0], back_step[1]]
-                            counter += 1
-            return map(lambda x: (x, pheromone/len(agents_in_direction)), agents_in_direction)
+        elif self.direction in self.intercard_move:
+            found_counter = 0
+            # WHEN CHECKING BEHIND YOU SUBSTRACT BUT WHEN CHECKING ADJACENTLY YOU ADD
+            next_check = [np.subtract(self.grid_coord, self.cardinal_move[direction]) if direction == self.prev_direction else np.add(self.grid_coord, self.cardinal_move[direction]) for direction in self.direction] # next cells to check in each direction
+            agents_found = []
+            flags = [0] * 2
+
+            while not (flags[0] and flags[1]):
+                for index, direction in enumerate(self.direction):
+                    # set out of bounds flag
+                    if not flags[index] and not (0 <= next_check[index][0] <= self.grid.CELLS_IN_HEIGHT-1 and 0 <= next_check[index][1] <= self.grid.CELLS_IN_WIDTH-1):
+                        flags[index] = 1 
+                    else:
+                        # if contains an agent add it to the found agents list
+                        cell = self.grid.tracker[next_check[index][0], next_check[index][1]]
+                        if cell: 
+                            agents_found.append(cell) 
+                            found_counter += 1
+                        
+                        next_check[index] = np.subtract(next_check[index], self.cardinal_move[direction]) if direction == self.prev_direction else np.add(next_check[index], self.cardinal_move[direction])
+            return [(agent.ID, pheromone/len(agents_found)) for agent in agents_found] # todo may need to fix "pheromon/len..."
 
     def move(self):
         '''currently does move based with a probability of selecting turn randomly -> this will eventually be influenced by pheromones'''
-        if self.dst == tuple(self.grid_coord):return # todo make it trigger event to remove agent
+        if self.dst == tuple(self.grid_coord):
+            self.grid.tracker[self.grid_coord[0], self.grid_coord[1]] = None
+            return False
         # case 1: straight road -> move ahead if possible
-        if self.direction in self.moveset and self.moveset[self.direction] > 0: # if cardinal direction and possible to move
+        elif self.direction in self.moveset and self.moveset[self.direction] > 0: # if cardinal direction and possible to move
             move_choice = self.direction
         # case 2: you're in a junction select a direction at random, if choice is wrong exit change choice
         elif self.direction in self.intercard_move:
             # todo current randomly choice will eventually include pheromone 
             move_choice = random.choice(list(self.intercard_move[self.direction]))
             # if move_choice can't be done yet i.e. at edge of grid
-            # todo calculate edge junctions instead?
-            if self.moveset[move_choice] == self.final_road_len and move_choice == self.dst_side and tuple(self.grid_coord) != tuple(self.exit_junc): #todo what is this monstrosity, short-circuiting so its alright?  //// and self.dst_side == move_choice
-                # print("##############")
-                # print(f"move_set: {self.moveset}")
-                # print(f"currnt dirction:{self.direction}")
-                # print(f"attempted move: {move_choice}")
-                # print(f"final road len: {self.final_road_len}")
-                # print(f"src {self.src} {self.src_side}, dst {self.dst} {self.dst_side}")
-                # print(f"card dict: {self.intercard_move}")
-                # print(f"grid coord: {self.grid_coord}")
-                # print("##############")
+            if self.moveset[move_choice] == self.final_road_len and move_choice == self.dst_side and tuple(self.grid_coord) != tuple(self.exit_junc): # short circiting makes this alright right?
                 copy_moveset  = self.intercard_move[self.direction].copy()
                 copy_moveset.remove(move_choice)
                 move_choice = copy_moveset.pop() 
+        else:
+            move_choice = None
                 
-        if self.possible_move(np.add(self.grid_coord, self.cardinal_move[move_choice])): return
+        if self.possible_move(np.add(self.grid_coord, self.cardinal_move[move_choice])):
+            return True
 
         self.moveset[move_choice] -= 1 # update moveset
         self.grid_coord = np.add(self.grid_coord, self.cardinal_move[move_choice]) # update grid coordinate
+        self.prev_direction = self.direction
         self.direction = self.grid.grid[self.grid_coord[0], self.grid_coord[1]] # update direction
         self.steps += 1
         
@@ -237,7 +246,7 @@ class Agent:
         if self.moveset[move_choice] == 0 and tuple(self.grid_coord) != self.dst:
             for junc_cell in self.remove_opt[move_choice]:
                 self.intercard_move[junc_cell].remove(move_choice)
-
+        return True
 
 
             

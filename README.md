@@ -1,2 +1,2 @@
 # Dissertation
-autonomous swarm int pheromone shiz 
+autonomous swarm int pheromone stuff
