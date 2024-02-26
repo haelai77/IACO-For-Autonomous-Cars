@@ -190,6 +190,7 @@ class Agent:
             next_check = np.subtract(self.grid_coord, self.cardinal_move[self.direction]) # only need to subtract
             while True:
                 if not (0 <= next_check[0] <= self.grid.CELLS_IN_HEIGHT-1 and 0 <= next_check[1] <= self.grid.CELLS_IN_WIDTH-1): # if not within bounds
+                    self.pheromone = max(0, self.pheromone - pheromone_spread)
                     return []
                 else:
                     cell = self.grid.tracker[next_check[0], next_check[1]]

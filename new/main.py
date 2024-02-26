@@ -134,6 +134,6 @@ agent = grid.generate_agents(guarantee=2,)
 # agent = [Agent(grid=grid, src=(0, 16, "n"), ID=1), Agent(grid=grid, src=(15, 30, "n"), ID="tracker")] # n -> s 1 block to the first right
 # agent = [Agent(grid=grid, src=(0, 16, "n"), ID=1), Agent(grid=grid, src=(30, 16, "n"), ID="tracker")] # n -> s 1 block in the downwards direction
 start_time = time.time()
-env_loop(grid=grid, agents=agent, visualise=False)
+env_loop(grid=grid, agents=agent, visualise=True)
 print(time.time() - start_time)#
 # density 2 = roughly 3 mins and 11 seconds
