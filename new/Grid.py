@@ -59,7 +59,7 @@ class Grid():
             if k <= probability:
                 sources.append(source)
 
-        agents = [Agent(src, grid=self) for src in sources]
+        agents = [Agent(src, grid=self, ID = i+1) for i, src in enumerate(sources)]
 
         return agents
 

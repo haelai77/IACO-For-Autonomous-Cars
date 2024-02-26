@@ -1,11 +1,15 @@
 import random
 import numpy as np
 import numpy.typing as npt
+from numpy.random import choice
 
 class Agent:
-    def __init__(self, src, grid=None, ID=None, ) -> None:
-        self.pheromone = 0
+    def __init__(self, src, grid=None, ID=None, pheromone = 0, alpha = 5, decay=0.9, spread=0.5) -> None:
+        self.pheromone = pheromone
         self.delay = 0
+        self.alpha = alpha
+        self.decay = decay
+        self.spread = spread
 
         self.edge_junc: list[tuple] = [] #todo tmp? edge junc? huh?
 
@@ -25,8 +29,6 @@ class Agent:
         # agent attributes
         self.ID = ID 
         self.direction = self.grid.grid[self.src] # direction of current cell
-        self.prev_direction = self.direction
-        self.prev_direction = "s"#todo remove
 
         self.steps = 0 # number of steps taken
 
@@ -99,8 +101,9 @@ class Agent:
             if self.src[0] != dst_choice[0] and self.src[1] != dst_choice[1]: # set destination if y and x are not the same
                 selected = True
                 self.dst = dst_choice[:2]
-                self.direction = self.grid.grid[self.src]
                 self.dst_side = dst_choice[2]
+        # self.dst = (48, 33) # todo remove
+        # self.dst_side = "s"
         
     def _init_moveset(self):
         '''sets up moveset and possible intercardinal directions'''
@@ -142,103 +145,103 @@ class Agent:
             return False
         return True
 
-    def pheromone_lft(self):
-        #todo
-        pass
-
-    def pheromone_fwd(self):
-        #todo
-        pass
-
-    def compare_pheronomes(self, ag1, ag2):
-        '''returns a direction based on either agent or random '''
-        #todo
-        pass
-
     def pheromone_choice(self):
         '''only used at junctions, should take into account whether or not you're at exit junction'''
-        # todo should also update
-        #####################
-        # if current direction is in intercard
-            # based on intercard iterate in different diretions
-                # take first 2 agents on either choice and make decision considering either
-        ##################### 
-        if tuple(self.grid_coord) in self.edge_junc: #todo needs function for calculating edge junctions that aren't the exit junction can be done in the grid obj and the exit junc just removed from the list
-            # return the other option
-            #todo
-            pass
-        elif self.direction in self.intercard_move:
-            left_agent = self.pheromone_lft()
-            fwd_agent = self.pheromone_fwd()
-            
-            if left_agent and fwd_agent: # return better of 2 paths
-                return self.compare_pheromones()
-            else: # return random choice if no agents in adjacent roads
-                return random.choice(list(self.intercard_move[self.direction]))
-            
+        directions = list(self.intercard_move[self.direction])
+
+        # case 1: theres is only one option in the possible directions to turn (this move should always be possible due to removing turn options at the end of each move if moveset is zero)
+        if len(directions) == 1:
+            return directions[0]
+        
+        # case 2: if at edge return exit move if at exit junction else return alternative move
+        possible_turns = [self.moveset[move_choice] == self.final_road_len and move_choice == self.dst_side and tuple(self.grid_coord) != tuple(self.exit_junc) for move_choice in directions]
+        if sum(possible_turns) == 1: # if sum is 1 then we are at the edge of the grid    
+            for index, entry in enumerate(possible_turns):
+                if not entry: return directions[index]
+
+        # case 3: you need to look ahead in each direction you are travelling in and determine which option is best for self based on formulas specified in Fabrice's paper
+        found_flags = [0] * 2 # will always be 2 options in vanilla version
+        pheromones = [None] * len(directions)
+        next_check = [np.add(self.grid_coord, self.cardinal_move[direction]) for direction in directions]
+        
+        while not (found_flags[0] and found_flags[1]):
+            for index, direction in enumerate(directions):
+                if not found_flags[index] and not (0 <= next_check[index][0] <= self.grid.CELLS_IN_HEIGHT-1 and 0 <= next_check[index][1] <= self.grid.CELLS_IN_WIDTH-1):
+                    pheromones[index] = 0
+                    found_flags[index] = 1 
+                elif not found_flags[index]:
+                    cell = self.grid.tracker[next_check[index][0], next_check[index][1]]
+                    if cell:
+                        pheromones[index] = cell.pheromone
+                        found_flags[index] = 1
+                    next_check[index] = np.add(next_check[index], self.cardinal_move[direction])
+
+        weights = [1/((1+pheromone)**self.alpha) for pheromone in pheromones]
+        probability_A = weights[0]/sum(weights)
+        probability_B = 1 - probability_A
+        return choice(directions, p=[probability_A, probability_B])
+
     def spread_pheromone(self) -> tuple[int]:
         '''returns list of tuple/iterator of (agent, pheromone update value)'''
-        pheromone = 1 #todo calculate pheromone
-        
+        pheromone_spread = self.pheromone * self.spread #todo calculate pheromone
 
-        if self.direction in self.cardinal_move: # if on straight road
+        # straight road case: you just look in opposite to direction of travel
+        if self.direction in self.cardinal_move:
             next_check = np.subtract(self.grid_coord, self.cardinal_move[self.direction]) # only need to subtract
             while True:
                 if not (0 <= next_check[0] <= self.grid.CELLS_IN_HEIGHT-1 and 0 <= next_check[1] <= self.grid.CELLS_IN_WIDTH-1): # if not within bounds
                     return []
                 else:
                     cell = self.grid.tracker[next_check[0], next_check[1]]
-                    if cell: return [(cell.ID, pheromone)] # return agent behind and pheromone it needs to update
+                    self.pheromone = max(0, self.pheromone - pheromone_spread) # decreases agent's pheromone pool
+                    if cell: return [(cell, pheromone_spread)] # return agent behind and pheromone it needs to update
                     next_check = np.subtract(next_check, self.cardinal_move[self.direction])
-
+        # junction cell case: you need to spread out in 2 directions, backwards to direction fo travel and opposite to the possible turning direction
         elif self.direction in self.intercard_move:
-            found_counter = 0
-            # WHEN CHECKING BEHIND YOU SUBSTRACT BUT WHEN CHECKING ADJACENTLY YOU ADD
-            next_check = [np.subtract(self.grid_coord, self.cardinal_move[direction]) if direction == self.prev_direction else np.add(self.grid_coord, self.cardinal_move[direction]) for direction in self.direction] # next cells to check in each direction
+            next_check = [np.subtract(self.grid_coord, self.cardinal_move[direction]) for direction in self.direction] # next cells to check in each direction
             agents_found = []
-            flags = [0] * 2
+            found_flags = [0] * 2
 
-            while not (flags[0] and flags[1]):
+            while not (found_flags[0] and found_flags[1]):
                 for index, direction in enumerate(self.direction):
-                    # set out of bounds flag
-                    if not flags[index] and not (0 <= next_check[index][0] <= self.grid.CELLS_IN_HEIGHT-1 and 0 <= next_check[index][1] <= self.grid.CELLS_IN_WIDTH-1):
-                        flags[index] = 1 
-                    else:
-                        # if contains an agent add it to the found agents list
+                    # out of bounds = set found flag so you don't have to check / do any more adding, makes use of short circuiting so skips comparisons
+                    if not found_flags[index] and not (0 <= next_check[index][0] <= self.grid.CELLS_IN_HEIGHT-1 and 0 <= next_check[index][1] <= self.grid.CELLS_IN_WIDTH-1):
+                        found_flags[index] = 1 
+                    elif not found_flags[index]:
+                        # if cell contains an agent add it to the found agents list
                         cell = self.grid.tracker[next_check[index][0], next_check[index][1]]
                         if cell: 
-                            agents_found.append(cell) 
-                            found_counter += 1
+                            agents_found.append(cell)
+                            found_flags[index] = 1
                         
-                        next_check[index] = np.subtract(next_check[index], self.cardinal_move[direction]) if direction == self.prev_direction else np.add(next_check[index], self.cardinal_move[direction])
-            return [(agent.ID, pheromone/len(agents_found)) for agent in agents_found] # todo may need to fix "pheromon/len..."
+                        next_check[index] = np.subtract(next_check[index], self.cardinal_move[direction])
+            self.pheromone = max(0, self.pheromone - pheromone_spread)
+            return [(agent, pheromone_spread/len(agents_found)) for agent in agents_found] # todo may need to fix "pheromon/len..."
 
     def move(self):
         '''currently does move based with a probability of selecting turn randomly -> this will eventually be influenced by pheromones'''
+        self.pheromone = self.pheromone * self.decay
+       
+        if self.ID == "tracker":#todo remove
+            return 1
         if self.dst == tuple(self.grid_coord):
             self.grid.tracker[self.grid_coord[0], self.grid_coord[1]] = None
             return False
+       
         # case 1: straight road -> move ahead if possible
         elif self.direction in self.moveset and self.moveset[self.direction] > 0: # if cardinal direction and possible to move
             move_choice = self.direction
-        # case 2: you're in a junction select a direction at random, if choice is wrong exit change choice
+        # case 2: you're at a junction and you need to make a choice based on pheromones
         elif self.direction in self.intercard_move:
-            # todo current randomly choice will eventually include pheromone 
-            move_choice = random.choice(list(self.intercard_move[self.direction]))
-            # if move_choice can't be done yet i.e. at edge of grid
-            if self.moveset[move_choice] == self.final_road_len and move_choice == self.dst_side and tuple(self.grid_coord) != tuple(self.exit_junc): # short circiting makes this alright right?
-                copy_moveset  = self.intercard_move[self.direction].copy()
-                copy_moveset.remove(move_choice)
-                move_choice = copy_moveset.pop() 
-        else:
-            move_choice = None
-                
+            move_choice = self.pheromone_choice()
+        # if proposed move is not blocked by agent car
         if self.possible_move(np.add(self.grid_coord, self.cardinal_move[move_choice])):
+            self.delay += 1
+            self.pheromone += 1
             return True
-
+        
         self.moveset[move_choice] -= 1 # update moveset
         self.grid_coord = np.add(self.grid_coord, self.cardinal_move[move_choice]) # update grid coordinate
-        self.prev_direction = self.direction
         self.direction = self.grid.grid[self.grid_coord[0], self.grid_coord[1]] # update direction
         self.steps += 1
         
