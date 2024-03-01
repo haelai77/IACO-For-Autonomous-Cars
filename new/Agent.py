@@ -102,8 +102,6 @@ class Agent:
                 selected = True
                 self.dst = dst_choice[:2]
                 self.dst_side = dst_choice[2]
-        # self.dst = (48, 33) # todo remove
-        # self.dst_side = "s"
         
     def _init_moveset(self):
         '''sets up moveset and possible intercardinal directions'''
@@ -223,7 +221,7 @@ class Agent:
         '''currently does move based with a probability of selecting turn randomly -> this will eventually be influenced by pheromones'''
         self.pheromone = self.pheromone * self.decay
        
-        if self.ID == "tracker":#todo remove
+        if self.ID == "tracker":
             return 1
         if self.dst == tuple(self.grid_coord):
             self.grid.tracker[self.grid_coord[0], self.grid_coord[1]] = None

@@ -1,9 +1,11 @@
 import pygame as pg
 import numpy as np
-import numpy.typing as npt
 from Agent import Agent
 from Grid import Grid
-import time
+import csv
+import random
+import os
+import argparse
 
 GREY = (128, 128, 128)
 WHITE = (255, 255, 255)
@@ -15,8 +17,23 @@ BLUE = (30,144,255)
 
 TEMP_AGENT_COLOUR = (242, 0, 255)
 
-def env_loop(grid: Grid, agents: list[Agent], visualise = True, t=0, t_max=20000) -> None:
+def isfinished(agents):
+    finished = []
+    agents_new = []
+
+    for agent in agents:
+        if agent.move():
+            agents_new.append(agent)
+        else:
+            finished.append(agent)
+    
+    random.shuffle(agents_new)
+    return finished, agents_new
+
+def env_loop(grid: Grid, agents: list[Agent], folder, visualise = True, t=0, t_max=20000, round_density = 2.3, alpha = 0) -> None:
     '''runs simulation'''
+
+
     if visualise:
         pg.init() # initialises imported pygame modules
         end = False
@@ -26,17 +43,19 @@ def env_loop(grid: Grid, agents: list[Agent], visualise = True, t=0, t_max=20000
 
         # updates agents on screen
         move_event = pg.USEREVENT
-        pg.time.set_timer(move_event, 100)
+        pg.time.set_timer(move_event, 25)
+        current_max_delay = 0
 
         # -------- Main Game Loop ----------- #
-        while t != t_max: # todo will be eventually based on t = k where t is timesteps and k is user defined
-            
+        while t != t_max:
+            pg.display.set_caption(f'simple traffic simulation [t = {t}] [curr_max_delay = {current_max_delay}]')
+            if t % 1000 == 0: current_max_delay = 0
             # HANDLE EVENTS
             for event in pg.event.get():
                 # MOVE AGENTS
                 if event.type == move_event:
                     update_ph_list = []
-                    agents = [agent for agent in agents if agent.move()] # removes ones that have reached their destination # todo reinstate movement
+                    agents = [agent for agent in agents if agent.move()] # removes ones that have reached their destination 
                     # calculate pheromone increase
                     for agent in agents:
                         update_ph_list.extend(agent.spread_pheromone())
@@ -44,14 +63,13 @@ def env_loop(grid: Grid, agents: list[Agent], visualise = True, t=0, t_max=20000
                     for agent, update_val in update_ph_list:
                         agent.pheromone += update_val
                     # add more agents
-                    agents.extend(grid.generate_agents())
-                    print(t)
+                    agents.extend(grid.generate_agents(round_density=round_density))
                     t += 1
                 # QUIT SCREEN
                 elif event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE:
                     pg.quit()
                 elif event.type == pg.QUIT:  # If user clicked close
-                    end = True  
+                    pg.quit()
 
             screen.fill(GREY)
             
@@ -71,27 +89,29 @@ def env_loop(grid: Grid, agents: list[Agent], visualise = True, t=0, t_max=20000
                                   grid.CELL_SIZE])  # height of rect
             # draw agents
             for agent in agents:
+                if current_max_delay < agent.delay:
+                    current_max_delay = agent.delay
                 row, col = agent.grid_coord
-                srow, scol = agent.src
-                drow, dcol = agent.dst
+                # srow, scol = agent.src
+                # drow, dcol = agent.dst
                 colour = TEMP_AGENT_COLOUR
                 match agent.pheromone:
                     case 0:
                         colour = TEMP_AGENT_COLOUR
                     case _:
                         colour =  BLUE
-                pg.draw.rect(screen,
-                            GREEN,
-                            [(grid.MARGIN + grid.CELL_SIZE) * scol + grid.MARGIN, # top y coord 
-                             (grid.MARGIN + grid.CELL_SIZE) * srow + grid.MARGIN, # top x left
-                             grid.CELL_SIZE,   # width of rect
-                             grid.CELL_SIZE])  # height of rect
-                pg.draw.rect(screen,
-                            RED,
-                            [(grid.MARGIN + grid.CELL_SIZE) * dcol + grid.MARGIN, # top y coord 
-                             (grid.MARGIN + grid.CELL_SIZE) * drow + grid.MARGIN, # top x left
-                             grid.CELL_SIZE,   # width of rect
-                             grid.CELL_SIZE])  # height of rect
+                # pg.draw.rect(screen, # draw source
+                #             GREEN,
+                #             [(grid.MARGIN + grid.CELL_SIZE) * scol + grid.MARGIN, # top y coord 
+                #              (grid.MARGIN + grid.CELL_SIZE) * srow + grid.MARGIN, # top x left
+                #              grid.CELL_SIZE,   # width of rect
+                #              grid.CELL_SIZE])  # height of rect
+                # pg.draw.rect(screen, # draw end
+                #             RED,
+                #             [(grid.MARGIN + grid.CELL_SIZE) * dcol + grid.MARGIN, # top y coord 
+                #              (grid.MARGIN + grid.CELL_SIZE) * drow + grid.MARGIN, # top x left
+                #              grid.CELL_SIZE,   # width of rect
+                #              grid.CELL_SIZE])  # height of rect
                 pg.draw.rect(screen,
                             colour, # (agent.pheromone*2, 100, 100)
                             [(grid.MARGIN + grid.CELL_SIZE) * col + grid.MARGIN, # top y coord 
@@ -103,37 +123,68 @@ def env_loop(grid: Grid, agents: list[Agent], visualise = True, t=0, t_max=20000
             pg.display.flip() # draws new frame
         pg.quit()
     else:
-        while t != t_max:
-            update_ph_list = []
-            agents = [agent for agent in agents if agent.move()] # removes ones that have reached their destination # todo reinstate movement
-            # calculate pheromone increase
-            for agent in agents:
-                update_ph_list.extend(agent.spread_pheromone())
-            # apply pheromone changes
-            for agent, update_val in update_ph_list:
-                agent.pheromone += update_val
-            # add more agents
-            agents.extend(grid.generate_agents())
-            print(t)
-            t += 1
+        with open(f"{folder}/density_{round_density}__alpha_{alpha}.csv", mode="w", newline='') as file:
+            writer = csv.writer(file)
+
+            while t != t_max:
+                update_ph_list = []
+                finished, agents = isfinished(agents=agents)
+                num_of_finished = len(finished)
+
+                # calculate pheromone increase
+                for agent in agents:
+                    update_ph_list.extend(agent.spread_pheromone())
+                # apply pheromone changes
+                for agent, update_val in update_ph_list:
+                    agent.pheromone += update_val
+                # add more agents
+                agents.extend(grid.generate_agents(round_density=round_density, alpha=alpha))
+                t += 1
+                
+                if finished:
+                    min_delay = min(agent.delay for agent in finished)
+                    max_delay = max(agent.delay for agent in finished)
+                    mean_delay = np.mean([agent.delay for agent in finished])
+                    writer.writerow((min_delay, max_delay, mean_delay, num_of_finished))
+                else:
+                    writer.writerow((0, 0, 0, num_of_finished))
 
 
-grid = Grid(num_roads_on_axis = 5)
-agent = grid.generate_agents(guarantee=2,)
+parser = argparse.ArgumentParser()
+parser.add_argument("-visualise", action="store_true")
+parser.add_argument("-density", default=2.3, type=float)
+parser.add_argument("-alpha", default=0, type=int)
+parser.add_argument("-t_max", default=20000, type=int)
+parser.add_argument("-roads", default=5, type=int)
+args = parser.parse_args()
 
-# for stationary testing, code doesn't work if you randomy appear in middle of grid
-# grid = Grid(num_roads_on_axis = 3)
-# agent = [Agent(grid=grid, src=(0, 16, "n"), ID=1), Agent(grid=grid, src=(15, 16, "n"), ID=2), Agent(grid=grid, src=(15, 31, "n"), ID=3)] # down right (3->2->1) should detect 2 and 1
-# agent = [Agent(grid=grid, src=(0, 16, "n"), ID=1), Agent(grid=grid, src=(15, 16, "n"), ID=2), Agent(grid=grid, src=(15, 10, "n"), ID=3)] # down left  (3<-2->1) should detect 3 and 1
-# agent = [Agent(grid=grid, src=(0, 16, "n"), ID=1), Agent(grid=grid, src=(16, 16, "n"), ID=2), Agent(grid=grid, src=(16, 10, "n"), ID=3)] # down left
-# agent = [Agent(grid=grid, src=(0, 16, "n"), ID=1), Agent(grid=grid, src=(15, 16, "n"), ID=2), Agent(grid=grid, src=(30, 16, "n"), ID=3)] # straight line down
-# agent = [Agent(grid=grid, src=(0, 16, "n"), ID=1), Agent(grid=grid, src=(10, 16, "n"), ID=2)]
+print(args.roads)
+print(args.density)
 
-# for pheromone choice testing
-# grid = Grid(num_roads_on_axis=2)
-# agent = [Agent(grid=grid, src=(0, 16, "n"), ID=1), Agent(grid=grid, src=(15, 30, "n"), ID="tracker")] # n -> s 1 block to the first right
-# agent = [Agent(grid=grid, src=(0, 16, "n"), ID=1), Agent(grid=grid, src=(30, 16, "n"), ID="tracker")] # n -> s 1 block in the downwards direction
-start_time = time.time()
-env_loop(grid=grid, agents=agent, visualise=True)
-print(time.time() - start_time)#
-# density 2 = roughly 3 mins and 11 seconds
+if not args.visualise:
+    folder = "unordered_batches/unordered_batch_"
+    batch_number = 20
+
+    while batch_number != 100:
+        # make directory
+        file_directory = f"{folder}{batch_number}/"
+        os.mkdir(file_directory)
+        # alpha is zero and 2.3 to 2.6
+        for density in [i/10 for i in range(23, 27)]: 
+            grid = Grid(num_roads_on_axis = 5)
+            agent = grid.generate_agents(round_density=density, alpha=0)
+            env_loop(grid=grid, folder=file_directory, agents=agent, visualise=False, round_density=density, alpha=0)
+            print(f"density {density}, alpha 0, batch {batch_number} done")
+
+        # alpha is 10 and 2.3 to 3
+        for density in [i/10 for i in range(23, 31)]:
+            grid = Grid(num_roads_on_axis = 5)
+            agent = grid.generate_agents(round_density=density, alpha=10)
+            env_loop(grid=grid, folder=file_directory, agents=agent, visualise=False, round_density=density, alpha=10)
+            print(f"density {density}, alpha 10, batch {batch_number} done")
+        
+        batch_number += 1
+else:
+    grid = Grid(num_roads_on_axis = args.roads)
+    agent = grid.generate_agents(round_density=args.density, alpha=args.alpha)
+    env_loop(grid=grid, alpha=args.alpha, t_max=args.t_max, agents=agent, visualise=True, folder=None)

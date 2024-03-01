@@ -46,7 +46,7 @@ class Grid():
 
         return grid
 
-    def generate_agents(self, round_density = 2, guarantee=0):
+    def generate_agents(self, round_density = 2, guarantee=0, alpha = 0):
         '''generates agents at every time step and intialises them with a source'''
         if guarantee:
             return [Agent(random.choice(self.entrances), grid=self) for i in range(guarantee)]
@@ -59,7 +59,7 @@ class Grid():
             if k <= probability:
                 sources.append(source)
 
-        agents = [Agent(src, grid=self, ID = i+1) for i, src in enumerate(sources)]
+        agents = [Agent(src, grid=self, ID = i+1, alpha=alpha) for i, src in enumerate(sources)]
 
         return agents
 
