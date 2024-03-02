@@ -13,7 +13,11 @@
 
 #SBATCH --time=12:00:00
 
-#SBATCH --partition=test
+#SBATCH --partition=cpu
 
-echo 'My first job'
-hostname
+#SBATCH --output=out_directory/density_${1}__alpha_${2}/%a_density_${1}__alpha_${2}.out
+
+module purge
+module add languages/anaconda3/2022.11-3.9.13
+
+python -u main.py -density ${1} -alpha ${2}

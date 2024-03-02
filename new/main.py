@@ -33,7 +33,6 @@ def isfinished(agents):
 def env_loop(grid: Grid, agents: list[Agent], folder, visualise = True, t=0, t_max=20000, round_density = 2.3, alpha = 0) -> None:
     '''runs simulation'''
 
-
     if visualise:
         pg.init() # initialises imported pygame modules
         end = False
@@ -123,31 +122,33 @@ def env_loop(grid: Grid, agents: list[Agent], folder, visualise = True, t=0, t_m
             pg.display.flip() # draws new frame
         pg.quit()
     else:
-        with open(f"{folder}/density_{round_density}__alpha_{alpha}.csv", mode="w", newline='') as file:
-            writer = csv.writer(file)
+        # with open(f"{folder}/density_{round_density}__alpha_{alpha}.csv", mode="w", newline='') as file:
+            # writer = csv.writer(file)
 
-            while t != t_max:
-                update_ph_list = []
-                finished, agents = isfinished(agents=agents)
-                num_of_finished = len(finished)
+        while t != t_max:
+            update_ph_list = []
+            finished, agents = isfinished(agents=agents)
+            num_of_finished = len(finished)
 
-                # calculate pheromone increase
-                for agent in agents:
-                    update_ph_list.extend(agent.spread_pheromone())
-                # apply pheromone changes
-                for agent, update_val in update_ph_list:
-                    agent.pheromone += update_val
-                # add more agents
-                agents.extend(grid.generate_agents(round_density=round_density, alpha=alpha))
-                t += 1
-                
-                if finished:
-                    min_delay = min(agent.delay for agent in finished)
-                    max_delay = max(agent.delay for agent in finished)
-                    mean_delay = np.mean([agent.delay for agent in finished])
-                    writer.writerow((min_delay, max_delay, mean_delay, num_of_finished))
-                else:
-                    writer.writerow((0, 0, 0, num_of_finished))
+            # calculate pheromone increase
+            for agent in agents:
+                update_ph_list.extend(agent.spread_pheromone())
+            # apply pheromone changes
+            for agent, update_val in update_ph_list:
+                agent.pheromone += update_val
+            # add more agents
+            agents.extend(grid.generate_agents(round_density=round_density, alpha=alpha))
+            t += 1
+            
+            if finished:
+                min_delay = min(agent.delay for agent in finished)
+                max_delay = max(agent.delay for agent in finished)
+                mean_delay = np.mean([agent.delay for agent in finished])
+                # writer.writerow((min_delay, max_delay, mean_delay, num_of_finished))
+                print(((min_delay, max_delay, mean_delay, num_of_finished)))
+            else:
+                # writer.writerow((0, 0, 0, num_of_finished))
+                print(((0, 0, 0, num_of_finished)))
 
 
 parser = argparse.ArgumentParser()
