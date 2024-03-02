@@ -162,28 +162,31 @@ print(args.roads)
 print(args.density)
 
 if not args.visualise:
-    folder = "unordered_batches/unordered_batch_"
-    batch_number = 20
+    grid = Grid(num_roads_on_axis = args.roads)
+    agent = grid.generate_agents(round_density=args.density, alpha=args.alpha)
+    env_loop(grid=grid, alpha=args.alpha, t_max=args.t_max, agents=agent, visualise=False, folder=None) # todo specify folder
+    # folder = "unordered_batches/unordered_batch_"
+    # batch_number = 20
 
-    while batch_number != 100:
-        # make directory
-        file_directory = f"{folder}{batch_number}/"
-        os.mkdir(file_directory)
-        # alpha is zero and 2.3 to 2.6
-        for density in [i/10 for i in range(23, 27)]: 
-            grid = Grid(num_roads_on_axis = 5)
-            agent = grid.generate_agents(round_density=density, alpha=0)
-            env_loop(grid=grid, folder=file_directory, agents=agent, visualise=False, round_density=density, alpha=0)
-            print(f"density {density}, alpha 0, batch {batch_number} done")
+    # while batch_number != 100:
+    #     # make directory
+    #     file_directory = f"{folder}{batch_number}/"
+    #     os.mkdir(file_directory)
+    #     # alpha is zero and 2.3 to 2.6
+    #     for density in [i/10 for i in range(23, 27)]: 
+    #         grid = Grid(num_roads_on_axis = 5)
+    #         agent = grid.generate_agents(round_density=density, alpha=0)
+    #         env_loop(grid=grid, folder=file_directory, agents=agent, visualise=False, round_density=density, alpha=0)
+    #         print(f"density {density}, alpha 0, batch {batch_number} done")
 
-        # alpha is 10 and 2.3 to 3
-        for density in [i/10 for i in range(23, 31)]:
-            grid = Grid(num_roads_on_axis = 5)
-            agent = grid.generate_agents(round_density=density, alpha=10)
-            env_loop(grid=grid, folder=file_directory, agents=agent, visualise=False, round_density=density, alpha=10)
-            print(f"density {density}, alpha 10, batch {batch_number} done")
+    #     # alpha is 10 and 2.3 to 3
+    #     for density in [i/10 for i in range(23, 31)]:
+    #         grid = Grid(num_roads_on_axis = 5)
+    #         agent = grid.generate_agents(round_density=density, alpha=10)
+    #         env_loop(grid=grid, folder=file_directory, agents=agent, visualise=False, round_density=density, alpha=10)
+    #         print(f"density {density}, alpha 10, batch {batch_number} done")
         
-        batch_number += 1
+    #     batch_number += 1
 else:
     grid = Grid(num_roads_on_axis = args.roads)
     agent = grid.generate_agents(round_density=args.density, alpha=args.alpha)
