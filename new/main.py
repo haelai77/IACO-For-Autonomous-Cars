@@ -155,7 +155,6 @@ parser.add_argument("-t_max", default=20000, type=int)
 parser.add_argument("-roads", default=5, type=int)
 args = parser.parse_args()
 
-print(f"density: {args.density}, alpha: {args.alpha}")
 
 if not args.visualise:
     grid = Grid(num_roads_on_axis = args.roads)
