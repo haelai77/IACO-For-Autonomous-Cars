@@ -1,10 +1,11 @@
+import os
+os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
+
 import pygame as pg
 import numpy as np
 from Agent import Agent
 from Grid import Grid
-import csv
 import random
-import os
 import argparse
 
 GREY = (128, 128, 128)
@@ -47,7 +48,7 @@ def env_loop(grid: Grid, agents: list[Agent], folder, visualise = True, t=0, t_m
 
         # -------- Main Game Loop ----------- #
         while t != t_max:
-            pg.display.set_caption(f'simple traffic simulation [t = {t}] [curr_max_delay = {current_max_delay}]')
+            pg.display.set_caption(f'simple traffic simulation [density = {round_density}] [alpha = {alpha}] [t = {t}] [curr_max_delay = {current_max_delay}]')
             if t % 1000 == 0: current_max_delay = 0
             # HANDLE EVENTS
             for event in pg.event.get():
@@ -91,26 +92,26 @@ def env_loop(grid: Grid, agents: list[Agent], folder, visualise = True, t=0, t_m
                 if current_max_delay < agent.delay:
                     current_max_delay = agent.delay
                 row, col = agent.grid_coord
-                # srow, scol = agent.src
-                # drow, dcol = agent.dst
+                srow, scol = agent.src
+                drow, dcol = agent.dst
                 colour = TEMP_AGENT_COLOUR
                 match agent.pheromone:
                     case 0:
                         colour = TEMP_AGENT_COLOUR
                     case _:
                         colour =  BLUE
-                # pg.draw.rect(screen, # draw source
-                #             GREEN,
-                #             [(grid.MARGIN + grid.CELL_SIZE) * scol + grid.MARGIN, # top y coord 
-                #              (grid.MARGIN + grid.CELL_SIZE) * srow + grid.MARGIN, # top x left
-                #              grid.CELL_SIZE,   # width of rect
-                #              grid.CELL_SIZE])  # height of rect
-                # pg.draw.rect(screen, # draw end
-                #             RED,
-                #             [(grid.MARGIN + grid.CELL_SIZE) * dcol + grid.MARGIN, # top y coord 
-                #              (grid.MARGIN + grid.CELL_SIZE) * drow + grid.MARGIN, # top x left
-                #              grid.CELL_SIZE,   # width of rect
-                #              grid.CELL_SIZE])  # height of rect
+                pg.draw.rect(screen, # draw source
+                            GREEN,
+                            [(grid.MARGIN + grid.CELL_SIZE) * scol + grid.MARGIN, # top y coord 
+                             (grid.MARGIN + grid.CELL_SIZE) * srow + grid.MARGIN, # top x left
+                             grid.CELL_SIZE,   # width of rect
+                             grid.CELL_SIZE])  # height of rect
+                pg.draw.rect(screen, # draw end
+                            RED,
+                            [(grid.MARGIN + grid.CELL_SIZE) * dcol + grid.MARGIN, # top y coord 
+                             (grid.MARGIN + grid.CELL_SIZE) * drow + grid.MARGIN, # top x left
+                             grid.CELL_SIZE,   # width of rect
+                             grid.CELL_SIZE])  # height of rect
                 pg.draw.rect(screen,
                             colour, # (agent.pheromone*2, 100, 100)
                             [(grid.MARGIN + grid.CELL_SIZE) * col + grid.MARGIN, # top y coord 
@@ -122,9 +123,6 @@ def env_loop(grid: Grid, agents: list[Agent], folder, visualise = True, t=0, t_m
             pg.display.flip() # draws new frame
         pg.quit()
     else:
-        # with open(f"{folder}/density_{round_density}__alpha_{alpha}.csv", mode="w", newline='') as file:
-            # writer = csv.writer(file)
-
         while t != t_max:
             update_ph_list = []
             finished, agents = isfinished(agents=agents)
@@ -144,11 +142,9 @@ def env_loop(grid: Grid, agents: list[Agent], folder, visualise = True, t=0, t_m
                 min_delay = min(agent.delay for agent in finished)
                 max_delay = max(agent.delay for agent in finished)
                 mean_delay = np.mean([agent.delay for agent in finished])
-                # writer.writerow((min_delay, max_delay, mean_delay, num_of_finished))
-                print(((min_delay, max_delay, mean_delay, num_of_finished)))
+                print(min_delay, max_delay, mean_delay, num_of_finished)
             else:
-                # writer.writerow((0, 0, 0, num_of_finished))
-                print(((0, 0, 0, num_of_finished)))
+                print(0, 0, 0, num_of_finished)
 
 
 parser = argparse.ArgumentParser()
@@ -159,11 +155,13 @@ parser.add_argument("-t_max", default=20000, type=int)
 parser.add_argument("-roads", default=5, type=int)
 args = parser.parse_args()
 
+print(f"density: {args.density}, alpha: {args.alpha}")
+
 if not args.visualise:
     grid = Grid(num_roads_on_axis = args.roads)
     agent = grid.generate_agents(round_density=args.density, alpha=args.alpha)
-    env_loop(grid=grid, alpha=args.alpha, t_max=args.t_max, agents=agent, visualise=False, folder=None) 
+    env_loop(grid=grid, round_density=args.density, alpha=args.alpha, t_max=args.t_max, agents=agent, visualise=False, folder=None) 
 else:
     grid = Grid(num_roads_on_axis = args.roads)
     agent = grid.generate_agents(round_density=args.density, alpha=args.alpha)
-    env_loop(grid=grid, alpha=args.alpha, t_max=args.t_max, agents=agent, visualise=True, folder=None)
+    env_loop(grid=grid, round_density=args.density, alpha=args.alpha, t_max=args.t_max, agents=agent, visualise=True, folder=None)
