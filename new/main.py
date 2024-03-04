@@ -11,7 +11,7 @@ import argparse
 GREY = (128, 128, 128)
 WHITE = (255, 255, 255)
 
-GREEN = (153, 255, 0)
+GREEN = (23, 191, 8)
 RED =  (255, 0, 0)
 ORANGE = (255,127,80)
 BLUE = (30,144,255)
@@ -43,8 +43,10 @@ def env_loop(grid: Grid, agents: list[Agent], folder, visualise = True, t=0, t_m
 
         # updates agents on screen
         move_event = pg.USEREVENT
-        pg.time.set_timer(move_event, 25)
+        pg.time.set_timer(move_event, 100)
         current_max_delay = 0
+        max_pheromone = 0
+        orang_thresh = red_thresh = 9999
 
         # -------- Main Game Loop ----------- #
         while t != t_max:
@@ -91,27 +93,18 @@ def env_loop(grid: Grid, agents: list[Agent], folder, visualise = True, t=0, t_m
             for agent in agents:
                 if current_max_delay < agent.delay:
                     current_max_delay = agent.delay
+                if max_pheromone < agent.pheromone:
+                    max_pheromone = agent.pheromone
+                    orang_thresh = max_pheromone/3
+                    red_thresh = 2*orang_thresh
+
                 row, col = agent.grid_coord
-                srow, scol = agent.src
-                drow, dcol = agent.dst
-                colour = TEMP_AGENT_COLOUR
-                match agent.pheromone:
-                    case 0:
-                        colour = TEMP_AGENT_COLOUR
-                    case _:
-                        colour =  BLUE
-                pg.draw.rect(screen, # draw source
-                            GREEN,
-                            [(grid.MARGIN + grid.CELL_SIZE) * scol + grid.MARGIN, # top y coord 
-                             (grid.MARGIN + grid.CELL_SIZE) * srow + grid.MARGIN, # top x left
-                             grid.CELL_SIZE,   # width of rect
-                             grid.CELL_SIZE])  # height of rect
-                pg.draw.rect(screen, # draw end
-                            RED,
-                            [(grid.MARGIN + grid.CELL_SIZE) * dcol + grid.MARGIN, # top y coord 
-                             (grid.MARGIN + grid.CELL_SIZE) * drow + grid.MARGIN, # top x left
-                             grid.CELL_SIZE,   # width of rect
-                             grid.CELL_SIZE])  # height of rect
+                colour = GREEN
+                if agent.pheromone > orang_thresh:
+                    colour = ORANGE
+                elif agent.pheromone > red_thresh:
+                    colour = RED
+
                 pg.draw.rect(screen,
                             colour, # (agent.pheromone*2, 100, 100)
                             [(grid.MARGIN + grid.CELL_SIZE) * col + grid.MARGIN, # top y coord 

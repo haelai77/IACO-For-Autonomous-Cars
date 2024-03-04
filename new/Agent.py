@@ -4,12 +4,13 @@ import numpy.typing as npt
 from numpy.random import choice
 
 class Agent:
-    def __init__(self, src, grid=None, ID=None, pheromone = 0, alpha = 5, decay=0.9, spread=0.5) -> None:
+    def __init__(self, src, grid=None, ID=None, pheromone = 0, alpha = 5, decay=0.9, spread=0.5, spread_decay = 0.03333) -> None:
         self.pheromone = pheromone
         self.delay = 0
         self.alpha = alpha
         self.decay = decay
         self.spread = spread
+        self.spread_decay = spread_decay
 
         self.edge_junc: list[tuple] = [] #todo tmp? edge junc? huh?
 
@@ -181,20 +182,25 @@ class Agent:
 
     def spread_pheromone(self) -> tuple[int]:
         '''returns list of tuple/iterator of (agent, pheromone update value)'''
-        pheromone_spread = self.pheromone * self.spread #todo calculate pheromone
+        pheromone_spread = self.pheromone * self.spread
+        spread_decay = self.pheromone * self.spread_decay
+        spread_counter = 0 
 
         # straight road case: you just look in opposite to direction of travel
         if self.direction in self.cardinal_move:
             next_check = np.subtract(self.grid_coord, self.cardinal_move[self.direction]) # only need to subtract
             while True:
+                spread_counter += 1
                 if not (0 <= next_check[0] <= self.grid.CELLS_IN_HEIGHT-1 and 0 <= next_check[1] <= self.grid.CELLS_IN_WIDTH-1): # if not within bounds
                     self.pheromone = max(0, self.pheromone - pheromone_spread)
                     return []
                 else:
                     cell = self.grid.tracker[next_check[0], next_check[1]]
-                    self.pheromone = max(0, self.pheromone - pheromone_spread) # decreases agent's pheromone pool
-                    if cell: return [(cell, pheromone_spread)] # return agent behind and pheromone it needs to update
+                    self.pheromone = max(0, self.pheromone) # decreases agent's pheromone pool
+                    if cell:
+                        return [(cell, pheromone_spread  - spread_decay*spread_counter)] # return agent behind and pheromone it needs to update
                     next_check = np.subtract(next_check, self.cardinal_move[self.direction])
+
         # junction cell case: you need to spread out in 2 directions, backwards to direction fo travel and opposite to the possible turning direction
         elif self.direction in self.intercard_move:
             next_check = [np.subtract(self.grid_coord, self.cardinal_move[direction]) for direction in self.direction] # next cells to check in each direction
@@ -202,6 +208,7 @@ class Agent:
             found_flags = [0] * 2
 
             while not (found_flags[0] and found_flags[1]):
+                spread_counter += 1
                 for index, direction in enumerate(self.direction):
                     # out of bounds = set found flag so you don't have to check / do any more adding, makes use of short circuiting so skips comparisons
                     if not found_flags[index] and not (0 <= next_check[index][0] <= self.grid.CELLS_IN_HEIGHT-1 and 0 <= next_check[index][1] <= self.grid.CELLS_IN_WIDTH-1):
@@ -210,16 +217,15 @@ class Agent:
                         # if cell contains an agent add it to the found agents list
                         cell = self.grid.tracker[next_check[index][0], next_check[index][1]]
                         if cell: 
-                            agents_found.append(cell)
+                            agents_found.append((cell, pheromone_spread - spread_decay*spread_counter))
                             found_flags[index] = 1
-                        
                         next_check[index] = np.subtract(next_check[index], self.cardinal_move[direction])
+
             self.pheromone = max(0, self.pheromone - pheromone_spread)
-            return [(agent, pheromone_spread/len(agents_found)) for agent in agents_found] # todo may need to fix "pheromon/len..."
+            return agents_found
 
     def move(self):
         '''currently does move based with a probability of selecting turn randomly -> this will eventually be influenced by pheromones'''
-        self.pheromone = self.pheromone * self.decay
        
         if self.ID == "tracker":
             return 1
@@ -238,6 +244,8 @@ class Agent:
             self.delay += 1
             self.pheromone += 1
             return True
+        else:
+            self.pheromone = self.pheromone * self.decay
         
         self.moveset[move_choice] -= 1 # update moveset
         self.grid_coord = np.add(self.grid_coord, self.cardinal_move[move_choice]) # update grid coordinate
