@@ -43,10 +43,11 @@ def env_loop(grid: Grid, agents: list[Agent], spread_decay = 0.03333, visualise 
 
         # updates agents on screen
         move_event = pg.USEREVENT
-        pg.time.set_timer(move_event, 15)
+        pg.time.set_timer(move_event, 90)
         max_pheromone = 0
         max_delay = 0
-        orang_thresh = red_thresh = 9999
+        orang_thresh = 1
+        red_thresh = 9999
 
         # -------- Main Game Loop ----------- #
         while t != t_max:
@@ -94,8 +95,7 @@ def env_loop(grid: Grid, agents: list[Agent], spread_decay = 0.03333, visualise 
                     max_delay = agent.delay
                 if max_pheromone < agent.pheromone:
                     max_pheromone = agent.pheromone
-                    orang_thresh = max_pheromone/3
-                    red_thresh = 2*orang_thresh
+                    red_thresh = 0.666 * max_pheromone
 
                 row, col = agent.grid_coord
                 colour = GREEN
