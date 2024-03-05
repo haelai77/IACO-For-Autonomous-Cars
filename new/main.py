@@ -69,7 +69,15 @@ def env_loop(grid: Grid, agents: list[Agent], spread_decay = 0.03333, visualise 
                     # add more agents
                     agents.extend(grid.generate_agents(round_density=round_density, spread_decay=spread_decay, alpha=alpha))
                     t += 1
-                # QUIT SCREEN
+                    
+                    if finished:
+                        min_delay = min(agent.delay for agent in finished)
+                        max_delay = max(agent.delay for agent in finished)
+                        mean_delay = np.mean([agent.delay for agent in finished])
+                        print(min_delay, max_delay, mean_delay, num_of_finished)
+                    else:
+                        print(0, 0, 0, num_of_finished)
+                        # QUIT SCREEN
                 elif event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE:
                     pg.quit()
                 elif event.type == pg.QUIT:  # If user clicked close

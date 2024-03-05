@@ -175,7 +175,7 @@ class Agent:
         try:
             weights = [1/((1+pheromone)**self.alpha) for pheromone in pheromones]
         except:
-            raise Exception(f"ERROR: {pheromones} ** {self.alpha}")
+            raise Exception(f"ERROR: phero: {pheromones}, alpha: {self.alpha}")
         probability_A = weights[0]/sum(weights)
         probability_B = 1 - probability_A
         return choice(directions, p=[probability_A, probability_B])
