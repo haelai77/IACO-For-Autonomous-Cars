@@ -2,10 +2,16 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.interpolate import BSpline, splrep, splev
 from ast import literal_eval
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument("-density", default=2.3)
+parser.add_argument("-alpha", default=0)
+args = parser.parse_args()
 
 # 0 to 11 graphs
-density = 2.4
-alpha = 0
+density = args.density
+alpha = args.alpha
 directory_prefix = f"../output/out_directory/density_{density}__alpha_{alpha}/"
 file = f"density_{density}__alpha_{alpha}"
 
@@ -25,17 +31,11 @@ batches_of_means = pd.DataFrame(index = batches, columns=time_steps)
 
 # puts the means into the batches of means
 for row in range(1, 11): #1000):
-    print(row)
-    f = open(f"{directory_prefix}{row}_{file}.out", "r")
-    data = f.readlines()
-    f.close()
-
-    data = [literal_eval(line.strip()) for line in data[2:]]
-    data =  pd.DataFrame(data, columns=['min', 'max', "mean", "#finished"])
+    data = pd.read_csv(f"{directory_prefix}{row}_{file}.out", sep=" ",names=["min", "max", "mean", "finished"])
 
     for col in range(0, t_max, chunk_size): 
-        chunk = data.iloc[col:col+chunk_size, 2].mean()
-        # if chunk == 0: print(j, k)
+        chunk = data.iloc[col:(col+chunk_size), 2].mean()
+        if chunk == 0: print(col, row)
         batches_of_means.loc[row, str(col+1000)] = chunk
 
 # 
@@ -65,6 +65,6 @@ plt.legend(["mins", "maxs", "means"])
 
 plt.grid(True)
 plt.tight_layout()
-# plt.show()
-plt.savefig("fig.png")
+plt.show()
+# plt.savefig("fig.png")
 

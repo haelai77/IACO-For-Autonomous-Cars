@@ -43,7 +43,7 @@ def env_loop(grid: Grid, agents: list[Agent], spread_decay = 0.03333, visualise 
 
         # updates agents on screen
         move_event = pg.USEREVENT
-        pg.time.set_timer(move_event, 90)
+        pg.time.set_timer(move_event, 15)
         max_pheromone = 0
         max_delay = 0
         orang_thresh = 1
@@ -57,7 +57,9 @@ def env_loop(grid: Grid, agents: list[Agent], spread_decay = 0.03333, visualise 
                 # MOVE AGENTS
                 if event.type == move_event:
                     update_ph_list = []
-                    agents = [agent for agent in agents if agent.move()] # removes ones that have reached their destination 
+                    finished, agents = isfinished(agents=agents)
+                    num_of_finished = len(finished)
+
                     # calculate pheromone increase
                     for agent in agents:
                         update_ph_list.extend(agent.spread_pheromone())
@@ -145,7 +147,7 @@ parser.add_argument("-density", default=2.3, type=float)
 parser.add_argument("-alpha", default=0, type=int)
 parser.add_argument("-t_max", default=20000, type=int)
 parser.add_argument("-roads", default=5, type=int)
-parser.add_argument("-spread_decay", default=0.03333, type=float)
+parser.add_argument("-spread_decay", default=0.0, type=float)
 args = parser.parse_args()
 
 
