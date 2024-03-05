@@ -172,8 +172,10 @@ class Agent:
                         pheromones[index] = cell.pheromone
                         found_flags[index] = 1
                     next_check[index] = np.add(next_check[index], self.cardinal_move[direction])
-
-        weights = [1/((1+pheromone)**self.alpha) for pheromone in pheromones]
+        try:
+            weights = [1/((1+pheromone)**self.alpha) for pheromone in pheromones]
+        except:
+            raise Exception(f"ERROR: {pheromones} ** {self.alpha}")
         probability_A = weights[0]/sum(weights)
         probability_B = 1 - probability_A
         return choice(directions, p=[probability_A, probability_B])
