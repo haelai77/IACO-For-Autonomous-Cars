@@ -20,8 +20,8 @@ class Grid():
                             self.CELLS_IN_HEIGHT * self.CELL_SIZE + self.MARGIN*self.CELLS_IN_HEIGHT]
 
         self.grid: npt.NDArray[np.int64] = self.init_grid()
-        self.tracker: npt.NDArray[np.int64] = np.full(shape=(self.CELLS_IN_WIDTH, self.CELLS_IN_HEIGHT), dtype=object, fill_value=None)
-        self.entrances: list[tuple] = [] # (y,x)
+        self.tracker: npt.NDArray[np.int64] = np.full(shape=(self.CELLS_IN_WIDTH, self.CELLS_IN_HEIGHT), dtype=object, fill_value=None) # keeps track of agent objects
+        self.entrances: list[tuple] = []
         self.exits: list[tuple] = []
 
         self.generate_accessways()
@@ -46,10 +46,8 @@ class Grid():
 
         return grid
 
-    def generate_agents(self, round_density = 2, guarantee=0, alpha = 0):
+    def generate_agents(self, round_density = 2, alpha = 0, spread_decay = 0.03333):
         '''generates agents at every time step and intialises them with a source'''
-        if guarantee:
-            return [Agent(random.choice(self.entrances), grid=self) for i in range(guarantee)]
 
         sources = []
         probability = round_density/len(self.entrances) 
@@ -59,7 +57,7 @@ class Grid():
             if k <= probability:
                 sources.append(source)
 
-        agents = [Agent(src, grid=self, ID = i+1, alpha=alpha) for i, src in enumerate(sources)]
+        agents = [Agent(src, grid=self, ID = i+1, alpha=alpha, spread_decay=spread_decay) for i, src in enumerate(sources)]
 
         return agents
 

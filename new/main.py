@@ -11,9 +11,9 @@ import argparse
 GREY = (128, 128, 128)
 WHITE = (255, 255, 255)
 
-GREEN = (23, 191, 8)
+GREEN = (10, 196, 0)
 RED =  (255, 0, 0)
-ORANGE = (255,127,80)
+ORANGE = (252, 127, 3)
 BLUE = (30,144,255)
 
 TEMP_AGENT_COLOUR = (242, 0, 255)
@@ -31,7 +31,7 @@ def isfinished(agents):
     random.shuffle(agents_new)
     return finished, agents_new
 
-def env_loop(grid: Grid, agents: list[Agent], folder, visualise = True, t=0, t_max=20000, round_density = 2.3, alpha = 0) -> None:
+def env_loop(grid: Grid, agents: list[Agent], spread_decay = 0.03333, visualise = True, t=0, t_max=20000, round_density = 2.3, alpha = 0) -> None:
     '''runs simulation'''
 
     if visualise:
@@ -43,15 +43,14 @@ def env_loop(grid: Grid, agents: list[Agent], folder, visualise = True, t=0, t_m
 
         # updates agents on screen
         move_event = pg.USEREVENT
-        pg.time.set_timer(move_event, 100)
-        current_max_delay = 0
+        pg.time.set_timer(move_event, 15)
         max_pheromone = 0
+        max_delay = 0
         orang_thresh = red_thresh = 9999
 
         # -------- Main Game Loop ----------- #
         while t != t_max:
-            pg.display.set_caption(f'simple traffic simulation [density = {round_density}] [alpha = {alpha}] [t = {t}] [curr_max_delay = {current_max_delay}]')
-            if t % 1000 == 0: current_max_delay = 0
+            pg.display.set_caption(f'[max_p = {round(max_pheromone, 2)}] [max delay = {max_delay}] [density = {round_density}] [alpha = {alpha}] [spread_decay = {spread_decay}]')
             # HANDLE EVENTS
             for event in pg.event.get():
                 # MOVE AGENTS
@@ -65,7 +64,7 @@ def env_loop(grid: Grid, agents: list[Agent], folder, visualise = True, t=0, t_m
                     for agent, update_val in update_ph_list:
                         agent.pheromone += update_val
                     # add more agents
-                    agents.extend(grid.generate_agents(round_density=round_density))
+                    agents.extend(grid.generate_agents(round_density=round_density, spread_decay=spread_decay, alpha=alpha))
                     t += 1
                 # QUIT SCREEN
                 elif event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE:
@@ -91,8 +90,8 @@ def env_loop(grid: Grid, agents: list[Agent], folder, visualise = True, t=0, t_m
                                   grid.CELL_SIZE])  # height of rect
             # draw agents
             for agent in agents:
-                if current_max_delay < agent.delay:
-                    current_max_delay = agent.delay
+                if agent.delay > max_delay:
+                    max_delay = agent.delay
                 if max_pheromone < agent.pheromone:
                     max_pheromone = agent.pheromone
                     orang_thresh = max_pheromone/3
@@ -100,9 +99,9 @@ def env_loop(grid: Grid, agents: list[Agent], folder, visualise = True, t=0, t_m
 
                 row, col = agent.grid_coord
                 colour = GREEN
-                if agent.pheromone > orang_thresh:
+                if red_thresh > agent.pheromone >= orang_thresh:
                     colour = ORANGE
-                elif agent.pheromone > red_thresh:
+                elif agent.pheromone >= red_thresh:
                     colour = RED
 
                 pg.draw.rect(screen,
@@ -128,7 +127,7 @@ def env_loop(grid: Grid, agents: list[Agent], folder, visualise = True, t=0, t_m
             for agent, update_val in update_ph_list:
                 agent.pheromone += update_val
             # add more agents
-            agents.extend(grid.generate_agents(round_density=round_density, alpha=alpha))
+            agents.extend(grid.generate_agents(round_density=round_density, spread_decay=spread_decay, alpha=alpha))
             t += 1
             
             if finished:
@@ -146,14 +145,36 @@ parser.add_argument("-density", default=2.3, type=float)
 parser.add_argument("-alpha", default=0, type=int)
 parser.add_argument("-t_max", default=20000, type=int)
 parser.add_argument("-roads", default=5, type=int)
+parser.add_argument("-spread_decay", default=0.03333, type=float)
 args = parser.parse_args()
 
 
 if not args.visualise:
     grid = Grid(num_roads_on_axis = args.roads)
-    agent = grid.generate_agents(round_density=args.density, alpha=args.alpha)
-    env_loop(grid=grid, round_density=args.density, alpha=args.alpha, t_max=args.t_max, agents=agent, visualise=False, folder=None) 
+
+    agent = grid.generate_agents(round_density=args.density, 
+                                 alpha=args.alpha, 
+                                 spread_decay=args.spread_decay)
+    
+    env_loop(grid=grid, 
+             round_density=args.density, 
+             alpha=args.alpha, 
+             t_max=args.t_max, 
+             agents=agent, 
+             visualise=False, 
+             spread_decay=args.spread_decay) 
 else:
     grid = Grid(num_roads_on_axis = args.roads)
-    agent = grid.generate_agents(round_density=args.density, alpha=args.alpha)
-    env_loop(grid=grid, round_density=args.density, alpha=args.alpha, t_max=args.t_max, agents=agent, visualise=True, folder=None)
+    agent = grid.generate_agents(round_density=args.density, 
+                                 alpha=args.alpha, 
+                                 spread_decay=args.spread_decay)
+    
+    env_loop(grid=grid, 
+             round_density=args.density, 
+             alpha=args.alpha, 
+             t_max=args.t_max, 
+             agents=agent, 
+             visualise=True, 
+             spread_decay=args.spread_decay)
+
+# python main.py -visualise -density 3 -alpha 0 -spread_decay 0.00

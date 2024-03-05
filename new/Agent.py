@@ -12,8 +12,6 @@ class Agent:
         self.spread = spread
         self.spread_decay = spread_decay
 
-        self.edge_junc: list[tuple] = [] #todo tmp? edge junc? huh?
-
         # grid related attributes
         self.src: tuple = src[:2] # starting coordinates
         self.src_side = src[2] # not to be confused with direction of travel
@@ -183,7 +181,7 @@ class Agent:
     def spread_pheromone(self) -> tuple[int]:
         '''returns list of tuple/iterator of (agent, pheromone update value)'''
         pheromone_spread = self.pheromone * self.spread
-        spread_decay = self.pheromone * self.spread_decay
+        spread_decay = self.pheromone * self.spread_decay # looses a set fraction of pheromone every further cell checked
         spread_counter = 0 
 
         # straight road case: you just look in opposite to direction of travel
@@ -196,9 +194,9 @@ class Agent:
                     return []
                 else:
                     cell = self.grid.tracker[next_check[0], next_check[1]]
-                    self.pheromone = max(0, self.pheromone) # decreases agent's pheromone pool
+                    self.pheromone = max(0, self.pheromone - pheromone_spread) # decreases agent's pheromone pool
                     if cell:
-                        return [(cell, pheromone_spread  - spread_decay*spread_counter)] # return agent behind and pheromone it needs to update
+                        return [(cell, max(0, pheromone_spread  - spread_decay*spread_counter))] # return agent behind and pheromone it needs to update
                     next_check = np.subtract(next_check, self.cardinal_move[self.direction])
 
         # junction cell case: you need to spread out in 2 directions, backwards to direction fo travel and opposite to the possible turning direction
@@ -217,7 +215,7 @@ class Agent:
                         # if cell contains an agent add it to the found agents list
                         cell = self.grid.tracker[next_check[index][0], next_check[index][1]]
                         if cell: 
-                            agents_found.append((cell, pheromone_spread - spread_decay*spread_counter))
+                            agents_found.append((cell, max(0, pheromone_spread - spread_decay*spread_counter)))
                             found_flags[index] = 1
                         next_check[index] = np.subtract(next_check[index], self.cardinal_move[direction])
 
@@ -244,7 +242,7 @@ class Agent:
             self.delay += 1
             self.pheromone += 1
             return True
-        else:
+        else: # pheromone only decays if a move has been made
             self.pheromone = self.pheromone * self.decay
         
         self.moveset[move_choice] -= 1 # update moveset
