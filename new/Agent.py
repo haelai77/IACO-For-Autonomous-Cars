@@ -2,9 +2,10 @@ import random
 import numpy as np
 import numpy.typing as npt
 from numpy.random import choice
+from collections import defaultdict
 
 class Agent:
-    def __init__(self, src, grid=None, ID=None, pheromone = 0, alpha = 5, decay=0.9, spread=0.5, spread_decay = 0.03333) -> None:
+    def __init__(self, src, grid=None, ID=None, pheromone = 0, alpha = 5, decay=0.9, spread=0.5, spread_decay = 1) -> None:
         self.pheromone = pheromone
         self.delay = 0
         self.alpha = alpha
@@ -22,14 +23,13 @@ class Agent:
 
         self.dst: tuple = None # ending coordinates
         self.dst_side = None
+        self.final_road_len = grid.BLOCK_SIZE
         self.exit_junc = None
         self._init_dst() # randomly assigns a possible destination
 
         # agent attributes
         self.ID = ID 
         self.direction = self.grid.grid[self.src] # direction of current cell
-
-        self.steps = 0 # number of steps taken
 
         # the number of possible moves to move in each direction
         self.moveset = {
@@ -45,13 +45,8 @@ class Agent:
             "e": ( 0,  1),
             "w": ( 0, -1)}
         
-        # holds the possible move at each junction
-        self.intercard_move = {
-            "ne": set(), # "n", "e"
-            "nw": set(), # "n", "w"
-            "se": set(), # "s", "e"
-            "sw": set()} # "s", "w"
-        
+        self.intercard_move = defaultdict(set)
+
         # to remove possible moves from self.intercard_move, e.g. if you ran out of north moves, n, you would look in the "ne" and "nw" sections fo intercard_move to remove north from the associated sets
         self.remove_opt = {
             "n": ["ne", "nw"],
@@ -70,10 +65,6 @@ class Agent:
             ("s", "n"): self.src[1] > self.dst[1], 
             ("w", "e"): self.src[0] > self.dst[0]}
         
-        # calculates the length of the final stretch of "road"
-        self.final_road_len = grid.BLOCK_SIZE
-        if (self.src_side, self.dst_side) in self.alt_dist: self.final_road_len += self.alt_dist[(self.src_side, self.dst_side)]
-
         # for calculating which junction is associated with the exit
         self.exit_junc_type = {
             "n": (self.final_road_len, 0),
@@ -87,10 +78,14 @@ class Agent:
             "s": ( 1, -1),
             "e": ( 1,  1),
             "w": (-1, -1)}
-        
+
+        self._set_finalroad()
         self._init_moveset() # calculates the moves required to get to destination
-                
         self.exit_junc = (np.add(self.dst, self.exit_junc_type[self.dst_side])) # retrieves element instantiated in loop yikes
+
+    def _set_finalroad(self):
+        if (self.src_side, self.dst_side) in self.alt_dist:
+            self.final_road_len += self.alt_dist[(self.src_side, self.dst_side)]
 
     def _init_dst(self):
         '''finds suitable destination and sets current direction'''
@@ -182,10 +177,8 @@ class Agent:
         '''helper function that looks directly behind agent (one direction)'''
         spread_counter = 0 # counts how far away the cell the agent is checking
         pheromone_spread = self.pheromone * self.spread
-        spread_decay = self.pheromone * self.spread_decay # looses a set fraction of pheromone every further cell checked
 
         next_check = np.subtract(self.grid_coord, self.cardinal_move[self.direction]) # only need to subtract
-
         while True:
             spread_counter += 1
             if not (0 <= next_check[0] <= self.grid.CELLS_IN_HEIGHT-1 and 0 <= next_check[1] <= self.grid.CELLS_IN_WIDTH-1): # if not within bounds
@@ -195,13 +188,13 @@ class Agent:
                 cell = self.grid.tracker[next_check[0], next_check[1]]
                 self.pheromone = max(0, self.pheromone - pheromone_spread) # decreases agent's pheromone pool
                 if cell:
-                    return [(cell, max(0, pheromone_spread  - spread_decay*spread_counter))] # return agent behind and pheromone it needs to update
+                    return [(cell, pheromone_spread * (self.spread_decay ** spread_counter))] # return agent behind and pheromone it needs to update
                 next_check = np.subtract(next_check, self.cardinal_move[self.direction])
 
     def spread_helper_2(self):
         '''function that helps spread pheromone in 2 directions when at junction i.e. if you are at a NE cell you can spread backwards and west wards as those 2 directions can arrive onto the NE cell'''
         pheromone_spread = self.pheromone * self.spread
-        spread_decay = self.pheromone * self.spread_decay # looses a set fraction of pheromone every further cell checked
+        
         spread_counter = 0 # counts how far away the cell the agent is checking
         next_check = [np.subtract(self.grid_coord, self.cardinal_move[direction]) for direction in self.direction] # next cells to check in each direction
         agents_found = []
@@ -217,7 +210,7 @@ class Agent:
                         # if cell contains an agent add it to the found agents list
                         cell = self.grid.tracker[next_check[index][0], next_check[index][1]]
                         if cell: 
-                            agents_found.append((cell, max(0, pheromone_spread - spread_decay*spread_counter)))
+                            agents_found.append((cell, pheromone_spread * (self.spread_decay ** spread_counter)))
                             found_flags[index] = 1
                         next_check[index] = np.subtract(next_check[index], self.cardinal_move[direction])
 
@@ -233,13 +226,20 @@ class Agent:
         # junction cell case: you need to spread out in 2 directions, backwards to direction fo travel and opposite to the possible turning direction
         elif self.direction in self.intercard_move:
             return self.spread_helper_2()
+    
 ##############################################################
     def move(self):
         '''currently does move based with a probability of selecting turn randomly -> this will eventually be influenced by pheromones'''
-
-        if self.ID == "tracker":
-            return 1
         ###############################################
+        # # for bug fixing
+        if self.ID == "tracker":
+            self.pheromone=1000
+            return 1
+        # if self.ID in {"tracker_2","tracker_3","tracker_4"}:
+        #     return 1
+        ###############################################
+        self.pheromone = self.pheromone * self.decay
+
         if self.dst == tuple(self.grid_coord):
             self.grid.tracker[self.grid_coord[0], self.grid_coord[1]] = None
             return False
@@ -257,14 +257,11 @@ class Agent:
             self.delay += 1
             self.pheromone += 1
             return True
-        else: # pheromone only decays if a move has been made
-            self.pheromone = self.pheromone * self.decay
         ###############################################
         # update attributes
         self.moveset[move_choice] -= 1 # update moveset
         self.grid_coord = np.add(self.grid_coord, self.cardinal_move[move_choice]) # update grid coordinate
         self.direction = self.grid.grid[self.grid_coord[0], self.grid_coord[1]] # update direction
-        self.steps += 1
         ###############################################
         # removes possible move from junction if moveset deems it impossible
         if self.moveset[move_choice] == 0 and tuple(self.grid_coord) != self.dst:

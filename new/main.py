@@ -4,6 +4,7 @@ os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 import pygame as pg
 import numpy as np
 from Agent import Agent
+from Detour_Agent import Detour_Agent
 from Grid import Grid
 import random
 import argparse
@@ -31,41 +32,43 @@ def isfinished(agents):
     random.shuffle(agents_new)
     return finished, agents_new
 
-def env_loop(grid: Grid, agents: list[Agent], spread_decay = 0.03333, visualise = True, t=0, t_max=20000, round_density = 2.3, alpha = 0) -> None:
+def env_loop(grid: Grid, agents, spread_decay = 0.03333, vis = True, t=0, t_max=20000, round_density = 2.3, alpha = 0, speed=100, detours=False, test=False) -> None:
     '''runs simulation'''
 
-    if visualise:
+    if vis:
         pg.init() # initialises imported pygame modules
-        end = False
         screen = pg.display.set_mode(grid.WINDOW_SIZE, pg.RESIZABLE)
         pg.display.set_caption("simple traffic simulation") # set window title
         clock = pg.time.Clock() # Used to manage how fast the screen updates
 
         # updates agents on screen
         move_event = pg.USEREVENT
-        pg.time.set_timer(move_event, 90)
+        pg.time.set_timer(move_event, speed)
         max_pheromone = 0
         max_delay = 0
-        orang_thresh = 1
+        orang_thresh = 9999
         red_thresh = 9999
 
         # -------- Main Game Loop ----------- #
+        pause = False
         while t != t_max:
             pg.display.set_caption(f'[max_p = {round(max_pheromone, 2)}] [max delay = {max_delay}] [density = {round_density}] [alpha = {alpha}] [spread_decay = {spread_decay}]')
             # HANDLE EVENTS
             for event in pg.event.get():
                 # MOVE AGENTS
-                if event.type == move_event:
+                if event.type == pg.KEYDOWN and event.key == pg.K_p:
+                    pause = not pause
+                elif event.type == move_event and not pause:
                     update_ph_list = []
-                    agents = [agent for agent in agents if agent.move()] # removes ones that have reached their destination 
-                    # calculate pheromone increase
+                    finished, agents = isfinished(agents=agents) # removes ones that have reached their destination 
+                    # # calculate pheromone increase
                     for agent in agents:
                         update_ph_list.extend(agent.spread_pheromone())
                     # apply pheromone changes
                     for agent, update_val in update_ph_list:
                         agent.pheromone += update_val
-                    # add more agents
-                    agents.extend(grid.generate_agents(round_density=round_density, spread_decay=spread_decay, alpha=alpha))
+                    # # add more agents
+                    if not test: agents.extend(grid.generate_agents(round_density=round_density, spread_decay=spread_decay, alpha=alpha, detours=detours))
                     t += 1
                 # QUIT SCREEN
                 elif event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE:
@@ -95,14 +98,34 @@ def env_loop(grid: Grid, agents: list[Agent], spread_decay = 0.03333, visualise 
                     max_delay = agent.delay
                 if max_pheromone < agent.pheromone:
                     max_pheromone = agent.pheromone
+                    orang_thresh = 0.333 * max_pheromone
                     red_thresh = 0.666 * max_pheromone
 
                 row, col = agent.grid_coord
+                srow, scol = agent.src
+                drow, dcol = agent.dst
                 colour = GREEN
                 if red_thresh > agent.pheromone >= orang_thresh:
                     colour = ORANGE
                 elif agent.pheromone >= red_thresh:
                     colour = RED
+                if type(agent.ID) == str:
+                    colour=TEMP_AGENT_COLOUR
+
+                if type(agent.ID) == int:
+                    pg.draw.rect(screen,
+                                BLUE, # (agent.pheromone*2, 100, 100)
+                                [(grid.MARGIN + grid.CELL_SIZE) * scol + grid.MARGIN, # top y coord 
+                                (grid.MARGIN + grid.CELL_SIZE) * srow + grid.MARGIN, # top x left
+                                grid.CELL_SIZE,   # width of rect
+                                grid.CELL_SIZE])  # height of rect
+                    
+                    pg.draw.rect(screen,
+                                RED, # (agent.pheromone*2, 100, 100)
+                                [(grid.MARGIN + grid.CELL_SIZE) * dcol + grid.MARGIN, # top y coord 
+                                (grid.MARGIN + grid.CELL_SIZE) * drow + grid.MARGIN, # top x left
+                                grid.CELL_SIZE,   # width of rect
+                                grid.CELL_SIZE])  # height of rect
 
                 pg.draw.rect(screen,
                             colour, # (agent.pheromone*2, 100, 100)
@@ -110,6 +133,8 @@ def env_loop(grid: Grid, agents: list[Agent], spread_decay = 0.03333, visualise 
                              (grid.MARGIN + grid.CELL_SIZE) * row + grid.MARGIN, # top x left
                              grid.CELL_SIZE,   # width of rect
                              grid.CELL_SIZE])  # height of rect
+                
+
                 
             clock.tick(120) # fps
             pg.display.flip() # draws new frame
@@ -127,7 +152,7 @@ def env_loop(grid: Grid, agents: list[Agent], spread_decay = 0.03333, visualise 
             for agent, update_val in update_ph_list:
                 agent.pheromone += update_val
             # add more agents
-            agents.extend(grid.generate_agents(round_density=round_density, spread_decay=spread_decay, alpha=alpha))
+            agents.extend(grid.generate_agents(round_density=round_density, spread_decay=spread_decay, alpha=alpha, detours=detours))
             t += 1
             
             if finished:
@@ -140,41 +165,60 @@ def env_loop(grid: Grid, agents: list[Agent], spread_decay = 0.03333, visualise 
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-visualise", action="store_true")
+parser.add_argument("-vis", action="store_true")
+parser.add_argument("-detours", action="store_true")
+parser.add_argument("-guarantee", action="store_true")
+parser.add_argument("-test", action="store_true")
 parser.add_argument("-density", default=2.3, type=float)
-parser.add_argument("-alpha", default=0, type=int)
+parser.add_argument("-alpha", default=10, type=int)
 parser.add_argument("-t_max", default=20000, type=int)
 parser.add_argument("-roads", default=5, type=int)
-parser.add_argument("-spread_decay", default=0.03333, type=float)
+parser.add_argument("-speed", default=100, type=int)
+parser.add_argument("-spread_decay", default=1, type=float)
 args = parser.parse_args()
 
 
-if not args.visualise:
+if not args.vis:
     grid = Grid(num_roads_on_axis = args.roads)
 
     agent = grid.generate_agents(round_density=args.density, 
                                  alpha=args.alpha, 
-                                 spread_decay=args.spread_decay)
-    
+                                 spread_decay=args.spread_decay,
+                                 detours=args.detours)
+
     env_loop(grid=grid, 
              round_density=args.density, 
              alpha=args.alpha, 
              t_max=args.t_max, 
              agents=agent, 
-             visualise=False, 
-             spread_decay=args.spread_decay) 
+             vis=False, 
+             spread_decay=args.spread_decay,
+             detours=args.detours) 
 else:
+    if args.test:
+        args.roads = 3
+        args.guarantee = True
+
     grid = Grid(num_roads_on_axis = args.roads)
     agent = grid.generate_agents(round_density=args.density, 
                                  alpha=args.alpha, 
-                                 spread_decay=args.spread_decay)
-    
+                                 spread_decay=args.spread_decay,
+                                 detours=args.detours,
+                                 guarantee=args.guarantee)
+    if args.test:
+        agent.append(Detour_Agent(ID="tracker", src=(32, 16, "n"), grid=grid, move_buffer=["e"]))
+        agent.append(Detour_Agent(ID="tracker", src=(32, 33, "n"), grid=grid, move_buffer=["e"], pheromone=0))
+    # agent.append(Agent(ID="tracker", src=(32, 50, "n"), grid=grid))
+
     env_loop(grid=grid, 
              round_density=args.density, 
              alpha=args.alpha, 
              t_max=args.t_max, 
              agents=agent, 
-             visualise=True, 
-             spread_decay=args.spread_decay)
+             vis=True, 
+             spread_decay=args.spread_decay,
+             speed=args.speed,
+             detours=args.detours,
+             test=args.test)
 
-# python main.py -visualise -density 3 -alpha 0 -spread_decay 0.00
+# python main.py -vis -density 3 -alpha 0 -spread_decay 0.00
