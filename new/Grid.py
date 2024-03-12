@@ -1,6 +1,7 @@
 import numpy as np
 import numpy.typing as npt
 from Agent import Agent
+from Detour_Agent import Detour_Agent
 import random
 
 class Grid():
@@ -46,8 +47,12 @@ class Grid():
 
         return grid
 
-    def generate_agents(self, round_density = 2, alpha = 0, spread_decay = 0.03333):
+    def generate_agents(self, round_density = 2, alpha = 0, spread_decay = 0.03333, detours=False, guarantee = False):
         '''generates agents at every time step and intialises them with a source'''
+
+        if guarantee:
+            agents = [Detour_Agent(self.entrances[0], grid=self, ID=1, alpha=alpha, spread_decay=spread_decay)]
+            return agents
 
         sources = []
         probability = round_density/len(self.entrances) 
@@ -57,8 +62,10 @@ class Grid():
             if k <= probability:
                 sources.append(source)
 
-        agents = [Agent(src, grid=self, ID = i+1, alpha=alpha, spread_decay=spread_decay) for i, src in enumerate(sources)]
-
+        if not detours:
+            agents = [Agent(src, grid=self, ID = i+1, alpha=alpha, spread_decay=spread_decay) for i, src in enumerate(sources)]
+        else:
+            agents = [Detour_Agent(src, grid=self, ID = i+1, alpha=alpha, spread_decay=spread_decay) for i, src in enumerate(sources)]
         return agents
 
     def generate_accessways(self):
