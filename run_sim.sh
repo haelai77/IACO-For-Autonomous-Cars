@@ -24,4 +24,4 @@ module purge
 
 conda activate diss
 
-python -u ./new/main.py -density 2.6 -alpha 10
+python -u ./code/main.py -density 2.3 -alpha 0
