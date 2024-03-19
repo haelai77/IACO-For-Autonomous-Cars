@@ -5,13 +5,14 @@ from numpy.random import choice
 from collections import defaultdict, deque
 
 class Detour_Agent:
-    def __init__(self, src, grid=None, ID=None, pheromone = 0, alpha = 5, decay=0.9, spread=0.5, spread_decay = 0, p_weight = 1, d_weight = 1, move_buffer=[]) -> None:
+    def __init__(self, src, grid=None, ID=None, pheromone = 0, alpha = 5, decay=0.9, spread_pct=0.5, p_dropoff = 0, p_weight = 1, d_weight = 1, move_buffer=[], signalling_toggle = False) -> None:
         self.pheromone = pheromone
         self.delay = 0
         self.alpha = alpha
         self.decay = decay
-        self.spread = spread
-        self.spread_decay = spread_decay
+        self.spread_pct = spread_pct
+        self.p_dropoff = p_dropoff
+        self.signalling_toggle = signalling_toggle
 
         # move buffer for executive moves where agent doesn't get to choose
         self.move_buffer = deque(move_buffer)
@@ -20,16 +21,13 @@ class Detour_Agent:
 
         # grid related attributes
         self.src: tuple = src[:2] # starting coordinates
-        self.src_side = src[2] # not to be confused with direction of travel
-        
-        self.grid = grid # grid with roads representing directions
-        self.grid_coord = self.src # current coordinate in cell
-        self.grid.tracker[self.grid_coord] = self
-
         self.dst: tuple = None # ending coordinates
-        self.dst_side = None
-        self.final_road_len = grid.BLOCK_SIZE
-        self.exit_junc = None
+        self.dst_side = None # NOTE used for determining whether a detour has been taken or not
+
+        self.grid = grid # grid object
+        self.grid_coord = self.src 
+        self.grid.tracker[self.grid_coord] = self
+    
         self._init_dst() # randomly assigns a possible destination
 
         # agent attributes
@@ -38,7 +36,6 @@ class Detour_Agent:
         self.prev_direction = self.direction
 
         # # the number of possible moves to move in each direction
-        # self.moveset = defaultdict(int)
         self.detour_directions = []
         
         # how the grid coordinate is updated when travelling in each of these directions
@@ -51,31 +48,6 @@ class Detour_Agent:
         # holds the possible move at each junction
         self.intercard_move = {"se", "sw", "ne", "nw"}
         
-        # to remove possible moves from self.intercard_move, e.g. if you ran out of north moves, n, you would look in the "ne" and "nw" sections fo intercard_move to remove north from the associated sets
-        self.remove_opt = {
-            "n": ["ne", "nw"],
-            "s": ["se", "sw"],
-            "e": ["ne", "se"],
-            "w": ["nw", "sw"],}
-        
-        # determines whether the final stretch of road is self.grid.BLOCK_SIZE or self.grid.BLOCK_SIZE + 1 
-        self.alt_dist = {
-            ("n", "w"): 1,
-            ("e", "n"): 1,
-            ("s", "e"): 1,
-            ("w", "s"): 1,
-            ("n", "s"): self.src[1] < self.dst[1], 
-            ("e", "w"): self.src[0] < self.dst[0], 
-            ("s", "n"): self.src[1] > self.dst[1], 
-            ("w", "e"): self.src[0] > self.dst[0]}
-        
-        # for calculating which junction is associated with the exit
-        self.exit_junc_type = {
-            "n": (self.final_road_len, 0),
-            "s": (-self.final_road_len, 0),
-            "e": (0, -self.final_road_len),
-            "w": (0, self.final_road_len)}
-        
         # for checking diagonal cell when entering junction
         self.diag_check = {
             "n": (-1,  1),
@@ -83,7 +55,7 @@ class Detour_Agent:
             "e": ( 1,  1),
             "w": (-1, -1)}
 
-        # to calculate the relative cell required to check in each direction at a junction e.g. if you are entering at NW to check westwards from that junction you need to start from NE
+        # for calculating relative cell to branch out from and also buffering moves
         self.root_cell = {
             "nww" : ( 0,  0, "w"), # ""
             "nwn" : (-1,  0, "nn"), # "n"
@@ -119,7 +91,6 @@ class Detour_Agent:
             "nwe" : (-1,  0)}
      
         self._init_detour_directions(self.src, self.dst) # calculates the moves required to get to destination
-        self.exit_junc = (np.add(self.dst, self.exit_junc_type[self.dst_side])) # retrieves element instantiated in loop yikes
 
     def _init_dst(self):
         '''finds suitable destination and sets current direction'''
@@ -152,7 +123,7 @@ class Detour_Agent:
     def spread_helper_1(self):
         '''helper function that looks directly behind agent (one direction)'''
         spread_counter = 0 # counts how far away the cell the agent is checking
-        pheromone_spread = self.pheromone * self.spread
+        pheromone_spread = self.pheromone * self.spread_pct
 
         next_check = np.subtract(self.grid_coord, self.cardinal_move[self.direction]) # only need to subtract
         while True:
@@ -164,12 +135,12 @@ class Detour_Agent:
                 cell = self.grid.tracker[next_check[0], next_check[1]]
                 self.pheromone = max(0, self.pheromone - pheromone_spread) # decreases agent's pheromone pool
                 if cell:
-                    return [(cell, pheromone_spread * (self.spread_decay ** spread_counter))] # return agent behind and pheromone it needs to update
+                    return [(cell, pheromone_spread * (self.p_dropoff ** spread_counter))] # return agent behind and pheromone it needs to update
                 next_check = np.subtract(next_check, self.cardinal_move[self.direction])
 
     def spread_helper_2(self):
         '''function that helps spread pheromone in 2 directions when at junction i.e. if you are at a NE cell you can spread backwards and west wards as those 2 directions can arrive onto the NE cell'''
-        pheromone_spread = self.pheromone * self.spread
+        pheromone_spread = self.pheromone * self.spread_pct
         
         spread_counter = 0 # counts how far away the cell the agent is checking
         next_check = [np.subtract(self.grid_coord, self.cardinal_move[direction]) for direction in self.direction] # next cells to check in each direction
@@ -186,7 +157,7 @@ class Detour_Agent:
                         # if cell contains an agent add it to the found agents list
                         cell = self.grid.tracker[next_check[index][0], next_check[index][1]]
                         if cell: 
-                            agents_found.append((cell, pheromone_spread * (self.spread_decay ** spread_counter)))
+                            agents_found.append((cell, pheromone_spread * (self.p_dropoff ** spread_counter)))
                             found_flags[index] = 1
                         next_check[index] = np.subtract(next_check[index], self.cardinal_move[direction])
 
@@ -265,14 +236,11 @@ class Detour_Agent:
         for p_val, direction in pheromones:
 
             # NOTE 2 difference cases to account for the different distances depending on detour
-            # if direction in self.detour_directions:
-            # extra_distance = (0, 0) if f"{self.direction}{self.dst_side}" not in extra_dist else extra_dist[f"{self.direction}{self.dst_side}"]
-            # extra_distance = extra_dist.get()
             current_cell = self.grid.grid[tuple(coord)]
             
             branch_start = np.add(coord, self.root_cell[f"{current_cell}{direction}"][:2])
             branch_endpoint = np.sum([branch_start, np.multiply(self.cardinal_move[direction], self.grid.BLOCK_SIZE+1)], axis = 0) # coordinate to calculate new distance from (branch_cell + block size + extra distance due to right turn)
-            extra_distance = self.extra_dist.get(f"{self.direction}{self.dst_side}", (0, 0))
+            extra_distance = self.extra_dist.get(f"{self.grid.grid[tuple(branch_endpoint)]}{self.dst_side}", (0, 0))
 
             distance = np.sum(np.add(np.abs(np.subtract(branch_endpoint, self.dst)), extra_distance)) # sum of absolute manhattan distance
             distance += (len(self.root_cell[f"{current_cell}{direction}"][2]) - 1) 
@@ -304,12 +272,12 @@ class Detour_Agent:
             diag_cell = self.grid.tracker[diag[0], diag[1]]
 
             # if diagonally relative cell is empty or contains and agent where it's next move won't be next cell
-            if not diag_cell or not tuple(np.add(diag_cell.grid_coord, self.cardinal_move[diag_cell.move_buffer[0]])) == tuple(move_result):
+            if not diag_cell or (not tuple(np.add(diag_cell.grid_coord, self.cardinal_move[diag_cell.move_buffer[0]])) == tuple(move_result) and self.signalling_toggle):
                 self.grid.tracker[self.grid_coord[0], self.grid_coord[1]] = None
                 self.grid.tracker[move_result[0], move_result[1]] = self
                 return False
             
-        elif not next_cell: # if next cell is empty and you're on a straight road
+        elif not next_cell: # next cell is empty
             self.grid.tracker[self.grid_coord[0], self.grid_coord[1]] = None
             self.grid.tracker[move_result[0], move_result[1]] = self
             return False
@@ -325,7 +293,6 @@ class Detour_Agent:
     
     def move(self):
         if self.ID == "tracker":
-            # self.pheromone=1000
             return 1
 
         self.pheromone = self.pheromone * self.decay
