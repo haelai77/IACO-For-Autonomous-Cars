@@ -5,13 +5,13 @@ from numpy.random import choice
 from collections import defaultdict
 
 class Agent:
-    def __init__(self, src, grid=None, ID=None, pheromone = 0, alpha = 5, decay=0.9, spread=0.5, spread_decay = 1) -> None:
+    def __init__(self, src, grid=None, ID=None, pheromone = 0, alpha = 5, decay=0.9, spread=0.5, p_dropoff = 1) -> None:
         self.pheromone = pheromone
         self.delay = 0
         self.alpha = alpha
         self.decay = decay
         self.spread = spread
-        self.spread_decay = spread_decay
+        self.spread_decay = p_dropoff
 
         # grid related attributes
         self.src: tuple = src[:2] # starting coordinates

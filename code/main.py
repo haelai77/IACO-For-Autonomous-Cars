@@ -32,7 +32,7 @@ def isfinished(agents):
     random.shuffle(agents_new)
     return finished, agents_new
 
-def env_loop(grid: Grid, agents, spread_decay = 0, vis=False, t=0, t_max=20000, round_density=2.3, alpha=0, speed=100, detours=False, test=False) -> None:
+def env_loop(grid: Grid, agents, p_dropoff = 0, vis=False, t=0, t_max=20000, round_density=2.3, alpha=0, speed=100, detours=False, test=False) -> None:
     '''runs simulation'''
 
     if vis:
@@ -52,7 +52,7 @@ def env_loop(grid: Grid, agents, spread_decay = 0, vis=False, t=0, t_max=20000, 
         # -------- Main Game Loop ----------- #
         pause = False
         while t != t_max:
-            pg.display.set_caption(f'[max_p = {round(max_pheromone, 2)}] [max delay = {max_delay}] [density = {round_density}] [alpha = {alpha}] [spread_decay = {spread_decay}]')
+            pg.display.set_caption(f'[max_p = {round(max_pheromone, 2)}] [max delay = {max_delay}] [density = {round_density}] [alpha = {alpha}] [spread_decay = {p_dropoff}]')
             # HANDLE EVENTS
             for event in pg.event.get():
                 # pause
@@ -60,6 +60,7 @@ def env_loop(grid: Grid, agents, spread_decay = 0, vis=False, t=0, t_max=20000, 
                     pause = not pause
                 
                 elif event.type == move_event and not pause:
+                    
                     update_ph_list = []
                     _, agents = isfinished(agents=agents) # removes ones that have reached their destination 
                     # # calculate pheromone increase
@@ -69,8 +70,13 @@ def env_loop(grid: Grid, agents, spread_decay = 0, vis=False, t=0, t_max=20000, 
                     for agent, update_val in update_ph_list:
                         agent.pheromone += update_val
                     # # add more agents
-                    if not test: agents.extend(grid.generate_agents(round_density=round_density, spread_decay=spread_decay, alpha=alpha, detours=detours))
+                    if not test: agents.extend(grid.generate_agents(round_density=round_density, p_dropoff=p_dropoff, alpha=alpha, detours=detours))
                     t += 1
+                elif event.type == pg.MOUSEBUTTONDOWN:
+                    pos = pg.mouse.get_pos()
+                    column = pos[0] // (grid.CELL_SIZE + grid.MARGIN)
+                    row = pos[1] // (grid.CELL_SIZE + grid.MARGIN)
+                    print("Click ", pos, "Grid coordinates: ", row, column)
                 elif event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE:
                     pg.quit()
                 elif event.type == pg.QUIT:  # If user clicked close
@@ -151,7 +157,7 @@ def env_loop(grid: Grid, agents, spread_decay = 0, vis=False, t=0, t_max=20000, 
             for agent, update_val in update_ph_list:
                 agent.pheromone += update_val
             # add more agents
-            agents.extend(grid.generate_agents(round_density=round_density, spread_decay=spread_decay, alpha=alpha, detours=detours)) # fixme need to account for new weights on pheromone and distances
+            agents.extend(grid.generate_agents(round_density=round_density, p_dropoff=p_dropoff, alpha=alpha, detours=detours)) # fixme need to account for new weights on pheromone and distances
             t += 1
             
             if finished:
@@ -166,14 +172,13 @@ def env_loop(grid: Grid, agents, spread_decay = 0, vis=False, t=0, t_max=20000, 
 parser = argparse.ArgumentParser()
 parser.add_argument("-vis", action="store_true")
 parser.add_argument("-detours", action="store_true")
-parser.add_argument("-guarantee", action="store_true")
 parser.add_argument("-test", action="store_true")
 parser.add_argument("-density", default=2.3, type=float)
 parser.add_argument("-alpha", default=0, type=int)
 parser.add_argument("-t_max", default=20000, type=int)
 parser.add_argument("-roads", default=5, type=int)
 parser.add_argument("-speed", default=100, type=int)
-parser.add_argument("-spread_decay", default=1, type=float)
+parser.add_argument("-p_dropoff", default=1, type=float)
 args = parser.parse_args()
 
 
@@ -182,7 +187,7 @@ if not args.vis:
 
     agent = grid.generate_agents(round_density=args.density, 
                                  alpha=args.alpha, 
-                                 spread_decay=args.spread_decay,
+                                 p_dropoff=args.p_dropoff,
                                  detours=args.detours)
 
     env_loop(grid=grid, 
@@ -191,23 +196,23 @@ if not args.vis:
              t_max=args.t_max, 
              agents=agent, 
              vis=False, 
-             spread_decay=args.spread_decay,
+             p_dropoff=args.p_dropoff,
              detours=args.detours) 
 else:
     if args.test:
         args.roads = 3
-        args.guarantee = True
+        args.test = True
 
     grid = Grid(num_roads_on_axis = args.roads)
     agent = grid.generate_agents(round_density=args.density, 
                                  alpha=args.alpha, 
-                                 spread_decay=args.spread_decay,
+                                 p_dropoff=args.p_dropoff,
                                  detours=args.detours,
-                                 guarantee=args.guarantee)
-    if args.test:
-        agent.append(Detour_Agent(ID="tracker", src=(32, 16, "n"), grid=grid, move_buffer=["e"]))
-        agent.append(Detour_Agent(ID="tracker", src=(32, 33, "n"), grid=grid, move_buffer=["e"], pheromone=0))
-    # agent.append(Agent(ID="tracker", src=(32, 50, "n"), grid=grid))
+                                 test=args.test)
+    
+    # if args.test:
+    #     agent.append(Detour_Agent(ID="tracker", src=(32, 16, "n"), grid=grid, move_buffer=["e"]))
+    #     agent.append(Detour_Agent(ID="tracker", src=(32, 33, "n"), grid=grid, move_buffer=["e"], pheromone=0))
 
     env_loop(grid=grid, 
              round_density=args.density, 
@@ -215,7 +220,7 @@ else:
              t_max=args.t_max, 
              agents=agent, 
              vis=True, 
-             spread_decay=args.spread_decay,
+             p_dropoff=args.p_dropoff,
              speed=args.speed,
              detours=args.detours,
              test=args.test)

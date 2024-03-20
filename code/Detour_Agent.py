@@ -3,6 +3,7 @@ import numpy as np
 import numpy.typing as npt
 from numpy.random import choice
 from collections import defaultdict, deque
+from math import ceil
 
 class Detour_Agent:
     def __init__(self, src, grid=None, ID=None, pheromone = 0, alpha = 5, decay=0.9, spread_pct=0.5, p_dropoff = 0, p_weight = 1, d_weight = 1, move_buffer=[], signalling_toggle = False) -> None:
@@ -77,7 +78,7 @@ class Detour_Agent:
             "nee" : ( 0,  1, "ee"), # "e",
             "nes" : ( 1,  1, "ess")} # "se"
 
-        self.extra_dist ={
+        self.extra_dist = { # for uturning
             "new" : ( 0,  1),
             "nes" : ( 0,  1),
 
@@ -89,6 +90,7 @@ class Detour_Agent:
 
             "nws" : (-1,  0),
             "nwe" : (-1,  0)}
+
      
         self._init_detour_directions(self.src, self.dst) # calculates the moves required to get to destination
 
@@ -101,6 +103,8 @@ class Detour_Agent:
                 selected = True
                 self.dst = dst_choice[:2]
                 self.dst_side = dst_choice[2]
+        if self.grid.test:
+            print(f"dst: {self.dst}")
         
     def _init_detour_directions(self, src, dst): # hack modify to have intercard_move as a immutable array-like holding junction cell labels
         '''sets up moveset and possible intercardinal directions'''
@@ -230,32 +234,45 @@ class Detour_Agent:
         
         endpoints = []
         weights = []
-        distances = [] #todo remove
+        distances = []
 
         # NOTE moves are now soley determined based on pheromone and distance at junction
         for p_val, direction in pheromones:
+            if self.alpha == 0 and direction in self.detour_directions: # skip if detour and alpha is zero
+                continue
 
             # NOTE 2 difference cases to account for the different distances depending on detour
             current_cell = self.grid.grid[tuple(coord)]
             
             branch_start = np.add(coord, self.root_cell[f"{current_cell}{direction}"][:2])
             branch_endpoint = np.sum([branch_start, np.multiply(self.cardinal_move[direction], self.grid.BLOCK_SIZE+1)], axis = 0) # coordinate to calculate new distance from (branch_cell + block size + extra distance due to right turn)
-            extra_distance = self.extra_dist.get(f"{self.grid.grid[tuple(branch_endpoint)]}{self.dst_side}", (0, 0))
+            # todo sdfksldfhskldf
+            # self.extra_dist2 = { # key = f"{direction take}{destination side}"
+            #     "ne" : 1,
+            #     "nn" : branch_endpoint[1] < self.dst[1],
+            #     "ns" : 
+            # }
+
+            extra_distance = self.extra_dist.get(f"{self.grid.grid[tuple(branch_endpoint)]}{self.dst_side}", (0, 0)) # extra distance for uturning
 
             distance = np.sum(np.add(np.abs(np.subtract(branch_endpoint, self.dst)), extra_distance)) # sum of absolute manhattan distance
-            distance += (len(self.root_cell[f"{current_cell}{direction}"][2]) - 1) 
-            
+            distance += (len(self.root_cell[f"{current_cell}{direction}"][2]) - 1) # hack: extra distance for moves in current junction
+            print(f"branch endpoint: {branch_endpoint}, extra distance: {extra_distance}, current_junc_dist: {(len(self.root_cell[f"{current_cell}{direction}"][2]) - 1)} direction: {direction}")
+            #todo need to revamp u-turn distance calculations to old scheme with the green diagrams on one note
             endpoints.append(tuple(branch_endpoint)) 
-            distances.append(distance)# todo remove
+            distances.append(distance)
 
-            lin_comb_p_d = (self.p_weight * p_val) + (self.d_weight * distance) # linear combo of pheromone and distance            
-            weights.append( 1 / (1 + int(lin_comb_p_d))**self.alpha ) # calculate weight as before in Agent.py
+            lin_comb_p_d = (ceil(self.alpha/(self.alpha+1)) * self.p_weight * p_val) + (self.d_weight * distance) # linear combo of pheromone and distance   
+            print(lin_comb_p_d)
+            weights.append( 1 / (1 + (lin_comb_p_d))**((self.alpha == 0) + (self.alpha != 0)*self.alpha) ) # calculate weight as before in Agent.py
 
         # choose move based on probabilities
         sum_of_weights = np.sum(weights)
         probabilities = [weight/sum_of_weights for weight in weights]
-        # print(list(zip(probabilities, pheromones, distances)), self.detour_directions, coord, self.move_buffer)
-        move_idx = choice(len(pheromones), p=probabilities) # index
+
+        print(list(zip(probabilities, pheromones, distances)), self.detour_directions, coord, self.move_buffer) # hack prints probabilities
+
+        move_idx = choice(len(distances), p=probabilities) # index
         if pheromones[move_idx][1] in self.detour_directions: print("detour taken")
         # calculate new move set and buffer required moves
         self.buffer_moves(pheromones[move_idx], endpoints[move_idx], coord)

@@ -10,7 +10,7 @@ class Grid():
                  grey_block_size = 15, # number of cells a grey block should be 
                  num_roads_on_axis = 5,
                  margin = 1) -> None:
-        
+        self.test = False
         self.CELL_SIZE: int = cell_size_px
         self.BLOCK_SIZE: int = grey_block_size
         self.NUM_ROADS_ON_AXIS: int = num_roads_on_axis
@@ -47,11 +47,16 @@ class Grid():
 
         return grid
 
-    def generate_agents(self, round_density = 2.3, alpha = 0, spread_decay = 0, detours=False, guarantee=False, signalling_toggle=False):
+    def generate_agents(self, round_density = 2.3, alpha = 0, p_dropoff = 0, detours=False, test=False, signalling_toggle=False):
         '''generates agents at every time step and intialises them with a source'''
 
-        if guarantee:
-            agents = [Detour_Agent(self.entrances[0], grid=self, ID=1, alpha=alpha, p_dropoff=spread_decay, signalling_toggle=signalling_toggle)]
+        if test:
+            self.test = True
+            if detours: 
+                agents = [Detour_Agent(self.entrances[0], grid=self, ID=1, alpha=alpha, p_dropoff=p_dropoff, signalling_toggle=signalling_toggle)]
+            else:
+                agents = [Agent(self.entrances[0], grid=self, ID=1, alpha=alpha, p_dropoff=p_dropoff)]
+
             return agents
 
         sources = []
@@ -63,9 +68,9 @@ class Grid():
                 sources.append(source)
 
         if not detours:
-            agents = [Agent(src, grid=self, ID = i+1, alpha=alpha, spread_decay=spread_decay) for i, src in enumerate(sources)]
+            agents = [Agent(src, grid=self, ID = i+1, alpha=alpha, p_dropoff=p_dropoff) for i, src in enumerate(sources)]
         else:
-            agents = [Detour_Agent(src, grid=self, ID = i+1, alpha=alpha, p_dropoff=spread_decay, signalling_toggle=signalling_toggle) for i, src in enumerate(sources)]
+            agents = [Detour_Agent(src, grid=self, ID = i+1, alpha=alpha, p_dropoff=p_dropoff, signalling_toggle=signalling_toggle) for i, src in enumerate(sources)]
         return agents
 
     def generate_accessways(self):
