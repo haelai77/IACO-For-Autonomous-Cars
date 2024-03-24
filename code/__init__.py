@@ -1,1 +1,1 @@
-__all__ = ["Agent", "Grid"]
+__all__ = ["Agent", "Lookahead_Agent", "Grid"]

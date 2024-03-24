@@ -4,7 +4,7 @@ os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 import pygame as pg
 import numpy as np
 from Agent import Agent
-from Detour_Agent import Detour_Agent
+from Lookahead_Agent import Lookahead_Agent
 from Grid import Grid
 import random
 import argparse
@@ -32,10 +32,28 @@ def isfinished(agents):
     random.shuffle(agents_new)
     return finished, agents_new
 
-def env_loop(grid: Grid, agents, p_dropoff = 0, vis=False, t=0, t_max=20000, round_density=2.3, alpha=0, speed=100, detours=False, test=False) -> None:
+def env_loop(grid,
+             agents, 
+             p_dropoff = 0,
+             p_weight=1, 
+             d_weight=1, 
+             spread_pct=0.5, 
+             lookahead=False, 
+             detouring=False, 
+             signalling_toggle = False, 
+             vis=False, 
+             t=0, 
+             t_max=20000, 
+             round_density=2.3, 
+             alpha=0, 
+             speed=100, 
+             test=False, 
+             GA=False) -> None:
+    
     '''runs simulation'''
-
+    GA_ret = []
     if vis:
+        print(f"p_drop: {p_dropoff}, p_weight:{p_weight}, d_weight:{d_weight}, lookahead:{lookahead}, signalling:{signalling_toggle}, detouring:{detouring}")
         pg.init() # initialises imported pygame modules
         screen = pg.display.set_mode(grid.WINDOW_SIZE, pg.RESIZABLE)
         pg.display.set_caption("simple traffic simulation") # set window title
@@ -52,7 +70,7 @@ def env_loop(grid: Grid, agents, p_dropoff = 0, vis=False, t=0, t_max=20000, rou
         # -------- Main Game Loop ----------- #
         pause = False
         while t != t_max:
-            pg.display.set_caption(f'[max_p = {round(max_pheromone, 2)}] [max delay = {max_delay}] [density = {round_density}] [alpha = {alpha}] [spread_decay = {p_dropoff}]')
+            pg.display.set_caption(f'[max_p = {round(max_pheromone, 2)}] [max delay = {max_delay}] [density = {round_density}] [alpha = {alpha}] [spread_decay = {p_dropoff}] [detouring: {detouring}] [signalling: {signalling_toggle}]')
             # HANDLE EVENTS
             for event in pg.event.get():
                 # pause
@@ -70,7 +88,16 @@ def env_loop(grid: Grid, agents, p_dropoff = 0, vis=False, t=0, t_max=20000, rou
                     for agent, update_val in update_ph_list:
                         agent.pheromone += update_val
                     # # add more agents
-                    if not test: agents.extend(grid.generate_agents(round_density=round_density, p_dropoff=p_dropoff, alpha=alpha, detours=detours))
+                    if not test: agents.extend(grid.generate_agents(round_density=round_density, 
+                                                                    alpha=alpha, 
+                                                                    p_dropoff=p_dropoff,
+                                                                    p_weight=p_weight,
+                                                                    d_weight=d_weight,
+                                                                    spread_pct=spread_pct,
+                                                                    lookahead_agent=lookahead, 
+                                                                    detouring=detouring, 
+                                                                    signalling_toggle=signalling_toggle))
+
                     t += 1
                 elif event.type == pg.MOUSEBUTTONDOWN:
                     pos = pg.mouse.get_pos()
@@ -157,72 +184,95 @@ def env_loop(grid: Grid, agents, p_dropoff = 0, vis=False, t=0, t_max=20000, rou
             for agent, update_val in update_ph_list:
                 agent.pheromone += update_val
             # add more agents
-            agents.extend(grid.generate_agents(round_density=round_density, p_dropoff=p_dropoff, alpha=alpha, detours=detours)) # fixme need to account for new weights on pheromone and distances
+            agents.extend(grid.generate_agents(round_density=round_density, 
+                                               alpha=alpha, 
+                                               p_dropoff=p_dropoff,
+                                               p_weight=p_weight,
+                                               d_weight=d_weight,
+                                               spread_pct=spread_pct,
+                                               lookahead_agent=lookahead, 
+                                               detouring=detouring, 
+                                               signalling_toggle=signalling_toggle))
             t += 1
             
             if finished:
                 min_delay = min(agent.delay for agent in finished)
                 max_delay = max(agent.delay for agent in finished)
                 mean_delay = np.mean([agent.delay for agent in finished])
-                print(min_delay, max_delay, mean_delay, num_of_finished)
+
+                if not GA:
+                    print(min_delay, max_delay, mean_delay, num_of_finished)
+                elif t >= (t_max-1000):
+                    GA_ret.append(mean_delay)
             else:
-                print(0, 0, 0, num_of_finished)
+                if not GA:print(0, 0, 0, num_of_finished)
+                elif t >= (t_max-1000):
+                    GA_ret.append(0)
+    if GA:
+        return sum(GA_ret)/len(GA_ret)
 
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-vis", action="store_true")
-parser.add_argument("-detours", action="store_true")
 parser.add_argument("-test", action="store_true")
+
+parser.add_argument("-lookahead_agent", action="store_true")
+parser.add_argument("-detouring", action="store_true")
+parser.add_argument("-signal", action="store_true")
+
+
 parser.add_argument("-density", default=2.3, type=float)
 parser.add_argument("-alpha", default=0, type=int)
+
 parser.add_argument("-t_max", default=20000, type=int)
 parser.add_argument("-roads", default=5, type=int)
-parser.add_argument("-speed", default=100, type=int)
+parser.add_argument("-speed", default=50, type=int)
+
+
+parser.add_argument("-spread_pct", default=0.5, type=float)
 parser.add_argument("-p_dropoff", default=1, type=float)
+parser.add_argument("-p_weight", default=1, type=int)
+parser.add_argument("-d_weight", default=1, type=int)
 args = parser.parse_args()
 
+if not args.lookahead_agent and (args.signal or args.detouring):
+    raise Exception("can't have signalling without look ahead")
 
-if not args.vis:
-    grid = Grid(num_roads_on_axis = args.roads)
 
-    agent = grid.generate_agents(round_density=args.density, 
-                                 alpha=args.alpha, 
-                                 p_dropoff=args.p_dropoff,
-                                 detours=args.detours)
+grid = Grid(num_roads_on_axis = args.roads)
 
-    env_loop(grid=grid, 
-             round_density=args.density, 
-             alpha=args.alpha, 
-             t_max=args.t_max, 
-             agents=agent, 
-             vis=False, 
-             p_dropoff=args.p_dropoff,
-             detours=args.detours) 
-else:
-    if args.test:
-        args.roads = 3
-        args.test = True
+agents = grid.generate_agents(round_density=args.density, 
+                            alpha=args.alpha, 
+                            p_dropoff=args.p_dropoff,
+                            p_weight=args.p_weight,
+                            d_weight=args.d_weight,
+                            spread_pct=args.spread_pct,
+                            lookahead_agent=args.lookahead_agent,
+                            detouring = args.detouring,
+                            signalling_toggle=args.signal)
 
-    grid = Grid(num_roads_on_axis = args.roads)
-    agent = grid.generate_agents(round_density=args.density, 
-                                 alpha=args.alpha, 
-                                 p_dropoff=args.p_dropoff,
-                                 detours=args.detours,
-                                 test=args.test)
-    
-    # if args.test:
-    #     agent.append(Detour_Agent(ID="tracker", src=(32, 16, "n"), grid=grid, move_buffer=["e"]))
-    #     agent.append(Detour_Agent(ID="tracker", src=(32, 33, "n"), grid=grid, move_buffer=["e"], pheromone=0))
+if args.test:
+    args.test = True
+    agents.append(Lookahead_Agent(ID="tracker", src=(32, 16, "n"), grid=grid, move_buffer=["e"], pheromone = 1000))
+    agents.append(Lookahead_Agent(ID="tracker", src=(32, 16+17, "n"), grid=grid, move_buffer=["e"], pheromone = 1000))
+    agents.append(Lookahead_Agent(ID="tracker", src=(32, 16+17*2, "n"), grid=grid, move_buffer=["e"], pheromone = 1000))
 
-    env_loop(grid=grid, 
-             round_density=args.density, 
-             alpha=args.alpha, 
-             t_max=args.t_max, 
-             agents=agent, 
-             vis=True, 
-             p_dropoff=args.p_dropoff,
-             speed=args.speed,
-             detours=args.detours,
-             test=args.test)
+env_loop(grid=grid, 
+        round_density=args.density, 
+        alpha=args.alpha, 
+        t_max=args.t_max, 
+        agents=agents, 
+        vis=args.vis,
+        speed=args.speed,
+
+        p_dropoff=args.p_dropoff,
+        p_weight=args.p_weight,
+        d_weight=args.d_weight,
+        spread_pct=args.spread_pct,
+        lookahead=args.lookahead_agent,
+        detouring = args.detouring,
+        signalling_toggle=args.signal)
+
+        
 
 # python main.py -vis -density 3 -alpha 0 -spread_decay 0.00

@@ -1,7 +1,7 @@
 import numpy as np
 import numpy.typing as npt
 from Agent import Agent
-from Detour_Agent import Detour_Agent
+from Lookahead_Agent import Lookahead_Agent
 import random
 
 class Grid():
@@ -47,13 +47,31 @@ class Grid():
 
         return grid
 
-    def generate_agents(self, round_density = 2.3, alpha = 0, p_dropoff = 0, detours=False, test=False, signalling_toggle=False):
+    def generate_agents(self, round_density = 2.3, 
+                        alpha = 0, 
+                        p_dropoff = 0, 
+                        p_weight=1, 
+                        d_weight=1, 
+                        spread_pct=0.5, 
+                        lookahead_agent=False, 
+                        detouring=False, 
+                        test=False, 
+                        signalling_toggle=False):
         '''generates agents at every time step and intialises them with a source'''
 
         if test:
             self.test = True
-            if detours: 
-                agents = [Detour_Agent(self.entrances[0], grid=self, ID=1, alpha=alpha, p_dropoff=p_dropoff, signalling_toggle=signalling_toggle)]
+            if lookahead_agent: 
+                agents = [Lookahead_Agent(self.entrances[0], 
+                                          grid=self, 
+                                          ID=1, 
+                                          alpha=alpha, 
+                                          p_dropoff=p_dropoff, 
+                                          p_weight=p_weight, 
+                                          d_weight=d_weight,
+                                          spread_pct=spread_pct,
+                                          signalling_toggle=signalling_toggle, 
+                                          detouring=detouring)]
             else:
                 agents = [Agent(self.entrances[0], grid=self, ID=1, alpha=alpha, p_dropoff=p_dropoff)]
 
@@ -67,10 +85,10 @@ class Grid():
             if k <= probability:
                 sources.append(source)
 
-        if not detours:
+        if not lookahead_agent:
             agents = [Agent(src, grid=self, ID = i+1, alpha=alpha, p_dropoff=p_dropoff) for i, src in enumerate(sources)]
         else:
-            agents = [Detour_Agent(src, grid=self, ID = i+1, alpha=alpha, p_dropoff=p_dropoff, signalling_toggle=signalling_toggle) for i, src in enumerate(sources)]
+            agents = [Lookahead_Agent(src, grid=self, ID = i+1, alpha=alpha, p_dropoff=p_dropoff, p_weight=p_weight, d_weight=d_weight, spread_pct=spread_pct, signalling_toggle=signalling_toggle, detouring=detouring) for i, src in enumerate(sources)]
         return agents
 
     def generate_accessways(self):

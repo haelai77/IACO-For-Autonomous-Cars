@@ -5,8 +5,8 @@ from numpy.random import choice
 from collections import defaultdict, deque
 from math import ceil
 
-class Detour_Agent:
-    def __init__(self, src, grid=None, ID=None, pheromone = 0, alpha = 5, decay=0.9, spread_pct=0.5, p_dropoff = 0, p_weight = 1, d_weight = 1, move_buffer=[], signalling_toggle = False) -> None:
+class Lookahead_Agent:
+    def __init__(self, src, grid=None, ID=None, pheromone = 0, alpha = 5, decay=0.9, spread_pct=0.5, p_dropoff = 0, p_weight = 1, d_weight = 1, move_buffer=[], signalling_toggle = False, detouring=False) -> None:
         self.pheromone = pheromone
         self.delay = 0
         self.alpha = alpha
@@ -14,6 +14,9 @@ class Detour_Agent:
         self.spread_pct = spread_pct
         self.p_dropoff = p_dropoff
         self.signalling_toggle = signalling_toggle
+        self.detouring = detouring
+        self.detour_taken = 0
+        if ID != "tracker" and grid.test: print(f"detouring: {self.detouring}, alpha:{alpha}, singalling:{self.signalling_toggle}")
 
         # move buffer for executive moves where agent doesn't get to choose
         self.move_buffer = deque(move_buffer)
@@ -77,20 +80,6 @@ class Detour_Agent:
             "nen" : ( 0,  0, "n"), # "",
             "nee" : ( 0,  1, "ee"), # "e",
             "nes" : ( 1,  1, "ess")} # "se"
-
-        self.extra_dist = { # for uturning
-            "new" : ( 0,  1),
-            "nes" : ( 0,  1),
-
-            "sen" : ( 1,  0),
-            "sew" : ( 1,  0),
-
-            "swe" : ( 0, -1), 
-            "swn" : ( 0, -1),
-
-            "nws" : (-1,  0),
-            "nwe" : (-1,  0)}
-
      
         self._init_detour_directions(self.src, self.dst) # calculates the moves required to get to destination
 
@@ -104,30 +93,27 @@ class Detour_Agent:
                 self.dst = dst_choice[:2]
                 self.dst_side = dst_choice[2]
         if self.grid.test:
-            print(f"dst: {self.dst}")
+            self.dst_side = "s"
+            # self.dst = (49 ,99)
+            self.dst = (self.grid.CELLS_IN_HEIGHT - 1 ,50)
         
     def _init_detour_directions(self, src, dst): # hack modify to have intercard_move as a immutable array-like holding junction cell labels
         '''sets up moveset and possible intercardinal directions'''
         moves = np.subtract(src, dst)
         self.detour_directions = []
-        if moves[0] < 0: # if y diff is neg we go south else north
-            # self.moveset["s"] = abs(moves[0])
+        if moves[0] <= 0: # if y diff is neg we go south else north
             self.detour_directions.append("n")
-        elif moves[0] > 0:
-            # self.moveset["n"] = (moves[0])
+        if moves[0] >= 0:
             self.detour_directions.append("s")
-            
-        if moves[1] < 0: # if x is negative go east else go west
-            # self.moveset["e"] = abs(moves[1])
+        if moves[1] <= 0: # if x is negative go east else go west
             self.detour_directions.append("w")
-        elif moves[1] > 0:
-            # self.moveset["w"] = (moves[1])
+        if moves[1] >= 0:
             self.detour_directions.append("e")
 ##############################################################
     def spread_helper_1(self):
         '''helper function that looks directly behind agent (one direction)'''
         spread_counter = 0 # counts how far away the cell the agent is checking
-        pheromone_spread = self.pheromone * self.spread_pct
+        pheromone_spread = self.pheromone * self.spread_pct if not self.grid.test else 0
 
         next_check = np.subtract(self.grid_coord, self.cardinal_move[self.direction]) # only need to subtract
         while True:
@@ -144,7 +130,7 @@ class Detour_Agent:
 
     def spread_helper_2(self):
         '''function that helps spread pheromone in 2 directions when at junction i.e. if you are at a NE cell you can spread backwards and west wards as those 2 directions can arrive onto the NE cell'''
-        pheromone_spread = self.pheromone * self.spread_pct
+        pheromone_spread = self.pheromone * self.spread_pct if not self.grid.test else 0
         
         spread_counter = 0 # counts how far away the cell the agent is checking
         next_check = [np.subtract(self.grid_coord, self.cardinal_move[direction]) for direction in self.direction] # next cells to check in each direction
@@ -194,11 +180,15 @@ class Detour_Agent:
         pheromones = [] # [ (pheromone_found, direction) ]
         curr_junc_cell = self.grid.grid[tuple(coord)]
 
+        best_options = [] #if there is and option with no pheromone and no detouring possible
+
         # check in all 4 directions
         for direction in "nsew":
+            if (not self.detouring) and direction in self.detour_directions: # skip if detour and alpha is zero
+                continue
+
             branch_cell = coord # cell to branch from when checking in each out-road from a junction
             branch_cell = np.add(coord, self.root_cell[f"{curr_junc_cell}{direction}"][:2])
-            
             road_len = np.multiply(self.cardinal_move[direction], self.grid.BLOCK_SIZE)
             exit_check = np.add(branch_cell, road_len)
 
@@ -218,62 +208,63 @@ class Detour_Agent:
                     branch_cell = np.add(branch_cell, self.cardinal_move[direction])
                     # if out of bounds set found to true
                     if not (0 <= branch_cell[0] <= self.grid.CELLS_IN_HEIGHT-1 and 0 <= branch_cell[1] <= self.grid.CELLS_IN_WIDTH-1):
+                        #note: takes best path i.e. no pheromones and no detouring
+                        # if direction not in self.detour_directions: # takes best option in event detouring is on
+                        #     best_options.append((0, direction))
                         pheromones.append((0, direction))
                         found_flag = True
                     # if agent found in direction store it and set found to true
                     elif self.grid.tracker[tuple(branch_cell)]:
                         pheromones.append((self.grid.tracker[tuple(branch_cell)].pheromone, direction))
                         found_flag = True
+        if best_options:
+            return best_options
         return pheromones
         
     def phero_dist_choice(self, coord): # OPTIMISE
         '''returns immediate move and stores rest in move buffer'''
+        extra_dist = {
+            "n" : (-int(self.grid_coord[1] < self.dst[1]), 0),
+            "s" : (int(self.grid_coord[1] > self.dst[1]), 0),
+            "e" : (0, int(self.grid_coord[0] < self.dst[0])),
+            "w" : (0, -int(self.grid_coord[0] > self.dst[0]))}
+
         pheromones = self.search_pheromones(coord) # [ (pheromone, direction) ]
         if not pheromones:
             return
-        
         endpoints = []
         weights = []
         distances = []
 
         # NOTE moves are now soley determined based on pheromone and distance at junction
         for p_val, direction in pheromones:
-            if self.alpha == 0 and direction in self.detour_directions: # skip if detour and alpha is zero
-                continue
-
-            # NOTE 2 difference cases to account for the different distances depending on detour
             current_cell = self.grid.grid[tuple(coord)]
             
             branch_start = np.add(coord, self.root_cell[f"{current_cell}{direction}"][:2])
-            branch_endpoint = np.sum([branch_start, np.multiply(self.cardinal_move[direction], self.grid.BLOCK_SIZE+1)], axis = 0) # coordinate to calculate new distance from (branch_cell + block size + extra distance due to right turn)
-            # todo sdfksldfhskldf
-            # self.extra_dist2 = { # key = f"{direction take}{destination side}"
-            #     "ne" : 1,
-            #     "nn" : branch_endpoint[1] < self.dst[1],
-            #     "ns" : 
-            # }
+            branch_endpoint = np.sum([branch_start, np.multiply(self.cardinal_move[direction], self.grid.BLOCK_SIZE+1), extra_dist[direction]], axis = 0) # coordinate to calculate new distance from (branch_cell + block size + extra distance due to right turn)
 
-            extra_distance = self.extra_dist.get(f"{self.grid.grid[tuple(branch_endpoint)]}{self.dst_side}", (0, 0)) # extra distance for uturning
+            distance = np.sum(np.add(np.abs(np.subtract(branch_endpoint, self.dst)), extra_dist[direction])) # manhattan distance between move endpoint and destination
+            distance += (len(self.root_cell[f"{current_cell}{direction}"][2]) - 1 ) # distance required to move in curent junction to reach cell you branch out from taking into account uturn at endpoint
 
-            distance = np.sum(np.add(np.abs(np.subtract(branch_endpoint, self.dst)), extra_distance)) # sum of absolute manhattan distance
-            distance += (len(self.root_cell[f"{current_cell}{direction}"][2]) - 1) # hack: extra distance for moves in current junction
-            print(f"branch endpoint: {branch_endpoint}, extra distance: {extra_distance}, current_junc_dist: {(len(self.root_cell[f"{current_cell}{direction}"][2]) - 1)} direction: {direction}")
-            #todo need to revamp u-turn distance calculations to old scheme with the green diagrams on one note
             endpoints.append(tuple(branch_endpoint)) 
             distances.append(distance)
 
-            lin_comb_p_d = (ceil(self.alpha/(self.alpha+1)) * self.p_weight * p_val) + (self.d_weight * distance) # linear combo of pheromone and distance   
-            print(lin_comb_p_d)
-            weights.append( 1 / (1 + (lin_comb_p_d))**((self.alpha == 0) + (self.alpha != 0)*self.alpha) ) # calculate weight as before in Agent.py
-
+            lin_comb_p_d = ((self.alpha != 0) * self.p_weight * p_val) + (self.d_weight * distance) # if alpha is zero then no pheromones, if detouring is zero then no distance
+            power = int((self.alpha == 0) + (self.alpha != 0)*self.alpha)
+            weights.append( (1 / int(1 + (lin_comb_p_d))**power) ) # calculate weight as before in Agent.py
         # choose move based on probabilities
         sum_of_weights = np.sum(weights)
         probabilities = [weight/sum_of_weights for weight in weights]
 
-        print(list(zip(probabilities, pheromones, distances)), self.detour_directions, coord, self.move_buffer) # hack prints probabilities
-
         move_idx = choice(len(distances), p=probabilities) # index
-        if pheromones[move_idx][1] in self.detour_directions: print("detour taken")
+
+        if self.grid.test:
+            probabilities = [round(prob, 3) for prob in probabilities]
+            print(list(zip(probabilities, pheromones, distances)), self.detour_directions)
+        
+        if pheromones[move_idx][1] in self.detour_directions:
+            self.detour_taken += 1
+
         # calculate new move set and buffer required moves
         self.buffer_moves(pheromones[move_idx], endpoints[move_idx], coord)
 ##############################################################
