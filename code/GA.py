@@ -1,11 +1,8 @@
-
-from Grid import Grid
 from numpy.random import normal
 from Simulation import simulation
 import random
 from multiprocessing import Pool
-from functools import partial
-import time
+import os
 
 class GA:
     def __init__(self, max_gen, pop_size, roads, t_max, mutation_chance, density=3, lookahead=False, detouring=False, p_dropoff=1, signalling=False, tourney_size=2) -> None:
@@ -144,6 +141,7 @@ class GA:
         return population
 
     def run(self):
+
         gen = 0
 
         #1 initialise population
