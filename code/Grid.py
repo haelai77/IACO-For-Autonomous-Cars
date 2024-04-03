@@ -53,7 +53,7 @@ class Grid():
                         p_weight=1, 
                         d_weight=1, 
                         spread_pct=0.5, 
-                        lookahead_agent=False, 
+                        lookahead=False, 
                         detouring=False, 
                         test=False, 
                         signalling_toggle=False):
@@ -61,7 +61,7 @@ class Grid():
 
         if test:
             self.test = True
-            if lookahead_agent: 
+            if lookahead: 
                 agents = [Lookahead_Agent(self.entrances[0], 
                                           grid=self, 
                                           ID=1, 
@@ -85,7 +85,7 @@ class Grid():
             if k <= probability:
                 sources.append(source)
 
-        if not lookahead_agent:
+        if not lookahead:
             agents = [Agent(src, grid=self, ID = i+1, alpha=alpha, p_dropoff=p_dropoff) for i, src in enumerate(sources)]
         else:
             agents = [Lookahead_Agent(src, grid=self, ID = i+1, alpha=alpha, p_dropoff=p_dropoff, p_weight=p_weight, d_weight=d_weight, spread_pct=spread_pct, signalling_toggle=signalling_toggle, detouring=detouring) for i, src in enumerate(sources)]
