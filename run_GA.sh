@@ -1,8 +1,8 @@
 #!/bin/bash
 
-#SBATCH --job-name=1000_runs
+#SBATCH --job-name=GA_test
 #SBATCH --mail-type=BEGIN,END,FAIL
-#SBATCH --mail-user=um21226@bris.ac.uk
+#SBATCH --mail-user=um21226@bristol.ac.uk
 
 
 #SBATCH --mem-per-cpu=3500
@@ -10,13 +10,13 @@
 
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=28
+#SBATCH --cpus-per-task=20
 
-#SBATCH --time=12:00:00
+#SBATCH --time=01:00:00
 
-#SBATCH --partition=cpu
+#SBATCH --partition=test
 
-#SBATCH --output=/user/home/um21226/out_directory/density_2.6__alpha_10/%a_density_2.6__alpha_10.out
+#SBATCH --output=/user/home/um21226/results/test/test_GA/GA.out
 
 module purge
 
@@ -24,4 +24,4 @@ module purge
 
 conda activate diss
 
-python -u ./code/main.py -density 2.3 -alpha 0
+python -u ./code/main.py -ga -density 3.0 -t_max=5000 -pop_size=20 -tourney_size=3 -max_gen=5
