@@ -24,4 +24,5 @@ module purge
 
 conda activate diss
 
-python -u ./code/main.py -ga -density 3.0 -t_max=5000 -pop_size=20 -tourney_size=3 -max_gen=5
+# 6000 timesteps because we do 5000 to let city settle down then take the next agents that finish in the next 1000 timesteps
+python -u ./code/main.py -ga -density 3.0 -t_max=6000 -pop_size=20 -tourney_size=3 -max_gen=100

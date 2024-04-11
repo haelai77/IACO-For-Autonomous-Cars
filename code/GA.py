@@ -22,6 +22,8 @@ class GA:
         self.signal = signalling
         self.tourney_size = tourney_size
 
+        self.elitism = 3
+
         self.simulation = simulation()
 
     def initialise_pop(self, pop_size = 20):
@@ -32,16 +34,16 @@ class GA:
             "spread_pct" : 0.5,
             "p_dropoff"  : 1, # 1 = no dropoff
             "p_weight"   : 1,
-            "d_weight"   : 1,
+            "d_weight"   : 5,
             "alpha"      : 10}
         
-        for i in range(pop_size):
+        for _ in range(pop_size):
             genome = {
-                "spread_pct" : min(1, max(0, init_vals["spread_pct"] + round(normal(loc=0, scale=0.075),3   ))),
-                "p_dropoff"  : min(1, max(0, init_vals["p_dropoff"] + round(normal(loc=0, scale=0.05),3    ))),
-                "p_weight"   : max(1, init_vals["p_weight"]  + round(normal(loc=0, scale=5),3       )),
-                "d_weight"   : max(1, init_vals["p_weight"]  + round(normal(loc=0, scale=5),3       )),
-                "alpha"      : max(1, init_vals["p_weight"]  + round(normal(loc=0, scale=0.4),3     )),
+                "spread_pct" : min(1, max(0, init_vals["spread_pct"] + round(normal(loc=0, scale=0.05),3  ))),
+                "p_dropoff"  : min(1, max(0, init_vals["p_dropoff"]  + round(normal(loc=0, scale=0.05),3  ))),
+                "p_weight"   : max(1, init_vals["p_weight"]  + round(normal(loc=0, scale=3),3       )),
+                "d_weight"   : max(1, init_vals["d_weight"]  + round(normal(loc=0, scale=3),3       )),
+                "alpha"      : max(1, init_vals["alpha"]     + round(normal(loc=0, scale=0.4),3     )),
                 "fitness"    : 0
             }
 
@@ -72,13 +74,9 @@ class GA:
             average_delays = individual_pool.starmap(self.sim_wrapper, [(kwarg_set,) for kwarg_set in inputs])
 
         for i, individual in enumerate(population):
-            #
-            if average_delays is not None: 
-                individual["fitness"] = average_delays[i] * -1    
-                assessed_pop.append(individual)
-            else:
-                individual["fitness"] = -9999
-                assessed_pop.append(individual)
+            individual["fitness"] = average_delays[i] * -1    # will be -9999 if gridlocked
+            assessed_pop.append(individual)
+ 
 
         return sorted(assessed_pop, key= lambda d: d["fitness"], reverse=True) 
 
@@ -111,11 +109,12 @@ class GA:
         offspring["fitness"] = None # unassessed
         return offspring
 
-    def breed(self, population, tournament_size, elitism, crossover=0.5):
+    def breed(self, population, tournament_size, elitism):
         # cross over attributes of parents
         offspring = []
         if elitism:
-            offspring.append(population[0])
+            offspring.extend(population[:elitism])
+
         while len(offspring) < len(population):
             parent1 = self.tournament(population, tournament_size=tournament_size)
             parent2 = self.tournament(population, tournament_size=tournament_size)
@@ -123,14 +122,14 @@ class GA:
 
         return offspring    
 
-    def mutate(self, population, mutation_chance, elitism=True):
+    def mutate(self, population, mutation_chance, elitism):
         # applied to population after breading
         mutation_rates = {
-            "spread_pct": round(normal(loc=0, scale=0.075),3   ), #95% within 1.5% change
-            "p_dropoff" : round(normal(loc=0, scale=0.05),3    ), #95% within 1.5 change
-            "p_weight"  : round(normal(loc=0, scale=5),3       ), 
-            "d_weight"  : round(normal(loc=0, scale=5),3       ),
-            "alpha"     : round(normal(loc=0, scale=0.4),3     ),
+            "spread_pct": round(normal(loc=0, scale=0.05),3   ), #95% within 1.5% change
+            "p_dropoff" : round(normal(loc=0, scale=0.05),3   ), #95% within 1.5 change
+            "p_weight"  : round(normal(loc=0, scale=3),3      ), 
+            "d_weight"  : round(normal(loc=0, scale=3),3      ),
+            "alpha"     : round(normal(loc=0, scale=0.25),3    ),
         }
 
         for individual in population[elitism:]:
@@ -138,9 +137,11 @@ class GA:
                 if random.random() < mutation_chance:
                     individual[key] = individual[key] + mutation_rates[key]
 
+                    # percentages kept between 0 and 1
                     if key in {"spread_pct", "p_dropoff"}:
                         individual[key] = max(0, min(1, individual[key]))
 
+                    # we want pheromone weight to be at minimum 1 and alpha to be at minimum 1 because I think it would be better :)
                     elif key in {"p_weight","d_weight","alpha"}:
                         individual[key] = max(1, individual[key])
         
@@ -153,31 +154,29 @@ class GA:
         population = self.initialise_pop(pop_size=self.pop_size)
 
         #2 run simulations 5000 time steps each assess population
-        with open("GA_3000_20_100.txt", "a+") as res_file:
             
-            start_time = time.time()
-            assessed_pop = self.assess_fitness(population=population)
-            end_time = time.time()
-            elapsed_time = end_time - start_time
-            print("Elapsed time:", elapsed_time, "seconds")
+        start_time = time.time()
+        assessed_pop = self.assess_fitness(population=population)
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+        print("Elapsed time:", elapsed_time, "seconds")
+
+        best = assessed_pop[0]
+
+        # while not max getneration:
+        while gen < self.max_gen:
+            gen += 1
+            # breed
+            offspring = self.breed(population=assessed_pop, tournament_size=self.tourney_size , elitism=self.elitism)
+            # mutate
+            mutants = self.mutate(population=offspring, elitism=self.elitism, mutation_chance=self.mutation_chance)
+            # assess
+            assessed_pop = self.assess_fitness(population=mutants)
 
             best = assessed_pop[0]
+            worst = assessed_pop[-1]
 
-            # while not max getneration:
-            while gen < self.max_gen:
-                gen += 1
-                # breed
-                offspring = self.breed(population=assessed_pop, tournament_size=self.tourney_size , elitism=True)
-                # mutate
-                mutants = self.mutate(population=offspring, elitism=True, mutation_chance=self.mutation_chance)
-                # assess
-                assessed_pop = self.assess_fitness(population=mutants)
+            print(f"{best}, {worst}")
 
-                best = assessed_pop[0]
-                worst = assessed_pop[-1]
-                print(f"best:{best}")
-                print(f"worst:{worst}")
-
-                res_file.write(json.dumps(best)+"\n")
 
 #python main.py -ga -density=3 -t_max=3000 -pop_size=20 -tourney_size=3 -max_gen=5

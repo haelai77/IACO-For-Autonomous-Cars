@@ -65,8 +65,11 @@ class simulation:
                                     lookahead=lookahead,
                                     detouring = detouring,
                                     signalling_toggle=signalling_toggle)
-
+        #### for GA #### 
         delay = []
+        num_finished = []
+        ################
+
         if vis:
             print(f"p_drop: {p_dropoff}, p_weight:{p_weight}, d_weight:{d_weight}, lookahead:{lookahead}, signalling:{signalling_toggle}, detouring:{detouring}")
             pg.init() # initialises imported pygame modules
@@ -85,7 +88,7 @@ class simulation:
             # -------- Main Game Loop ----------- #
             pause = False
             while t != t_max:
-                pg.display.set_caption(f'[max_p = {round(max_pheromone, 2)}] [max delay = {max_delay}] [density = {round_density}] [alpha = {alpha}] [spread_decay = {p_dropoff}] [detouring: {detouring}] [signalling: {signalling_toggle}]')
+                pg.display.set_caption(f'[t:{t}] [max_p = {round(max_pheromone, 2)}] [max delay = {max_delay}] [density = {round_density}] [alpha = {alpha}] [spread_decay = {p_dropoff}] [detouring: {detouring}] [signalling: {signalling_toggle}]')
                 # HANDLE EVENTS
                 for event in pg.event.get():
                     # pause
@@ -218,17 +221,25 @@ class simulation:
                     if not GA:
                         print(min_delay, max_delay, mean_delay, num_of_finished)
                     elif t >= (t_max-1000):
+                        num_finished.append(len(finished))
                         delay.append(mean_delay)
                 else:
-                    if not GA:print(0, 0, 0, num_of_finished)
+                    if not GA:
+                        print(0, 0, 0, num_of_finished)
                     elif t >= (t_max-1000):
+                        num_finished.append(0)
                         delay.append(0)
 
         if GA:
-            return sum(delay)/len(delay)
+            # if the number of agents that have finished in the last 1000 is less than 
+            if sum(num_finished) < 75:
+                return 99999
+            else:
+                filtered_delay = []
 
+                # if no agents have finished then don't consider the delay
+                for i, num_fin in enumerate(num_finished):
+                    if num_fin != 0:
+                        filtered_delay.append(delay[i])
 
-
-        
-
-# python main.py -vis -density 3 -alpha 0 -spread_decay 0.00
+                return sum(filtered_delay)/len(filtered_delay)
