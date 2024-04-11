@@ -32,16 +32,16 @@ class GA:
             "spread_pct" : 0.5,
             "p_dropoff"  : 1, # 1 = no dropoff
             "p_weight"   : 1,
-            "d_weight"   : 10,
-            "alpha"      : 5}
+            "d_weight"   : 1,
+            "alpha"      : 10}
         
         for i in range(pop_size):
             genome = {
-                "spread_pct" : max(0,init_vals["spread_pct"] + round(normal(loc=0, scale=0.075),3   )),
-                "p_dropoff"  : min(1, init_vals["p_dropoff"] + round(normal(loc=0, scale=0.05),3    )),
-                "p_weight"   : max(0, init_vals["p_weight"]  + round(normal(loc=0, scale=5),3       )),
-                "d_weight"   : max(0, init_vals["p_weight"]  + round(normal(loc=0, scale=5),3       )),
-                "alpha"      : max(0, init_vals["p_weight"]  + round(normal(loc=0, scale=0.4),3     )),
+                "spread_pct" : min(1, max(0, init_vals["spread_pct"] + round(normal(loc=0, scale=0.075),3   ))),
+                "p_dropoff"  : min(1, max(0, init_vals["p_dropoff"] + round(normal(loc=0, scale=0.05),3    ))),
+                "p_weight"   : max(1, init_vals["p_weight"]  + round(normal(loc=0, scale=5),3       )),
+                "d_weight"   : max(1, init_vals["p_weight"]  + round(normal(loc=0, scale=5),3       )),
+                "alpha"      : max(1, init_vals["p_weight"]  + round(normal(loc=0, scale=0.4),3     )),
                 "fitness"    : 0
             }
 
@@ -55,7 +55,6 @@ class GA:
         # take mean of last 1000 time step delay
         # run all simulations
         assessed_pop = []
-        print("pop",len(population))
 
         # for individual in population:
         template = {
@@ -66,15 +65,21 @@ class GA:
             "lookahead":self.lookahead, 
             "detouring":self.detouring, 
             "signalling_toggle":self.signal,}
+
         inputs = [ {**template.copy(), **(dict(list(individual.items())[:-1]))} for individual in population]
         
         with Pool(processes=self.pop_size) as individual_pool:
             average_delays = individual_pool.starmap(self.sim_wrapper, [(kwarg_set,) for kwarg_set in inputs])
 
         for i, individual in enumerate(population):
-            individual["fitness"] = average_delays[i] * -1    
-            assessed_pop.append(individual)
-        print(len(assessed_pop))
+            #
+            if average_delays is not None: 
+                individual["fitness"] = average_delays[i] * -1    
+                assessed_pop.append(individual)
+            else:
+                individual["fitness"] = -9999
+                assessed_pop.append(individual)
+
         return sorted(assessed_pop, key= lambda d: d["fitness"], reverse=True) 
 
     def tournament(self, population, tournament_size):
@@ -132,11 +137,12 @@ class GA:
             for key in mutation_rates:
                 if random.random() < mutation_chance:
                     individual[key] = individual[key] + mutation_rates[key]
+
                     if key in {"spread_pct", "p_dropoff"}:
-                        individual[key] = min(1, individual[key])
-                        individual[key] = max(0, individual[key])
-                    else:
-                        individual[key] = max(0, individual[key])
+                        individual[key] = max(0, min(1, individual[key]))
+
+                    elif key in {"p_weight","d_weight","alpha"}:
+                        individual[key] = max(1, individual[key])
         
         return population
 
@@ -155,7 +161,6 @@ class GA:
             elapsed_time = end_time - start_time
             print("Elapsed time:", elapsed_time, "seconds")
 
-            print(len(assessed_pop))
             best = assessed_pop[0]
 
             # while not max getneration:
