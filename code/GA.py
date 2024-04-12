@@ -34,7 +34,7 @@ class GA:
             "spread_pct" : 0.5,
             "p_dropoff"  : 1, # 1 = no dropoff
             "p_weight"   : 1,
-            "d_weight"   : 5,
+            "d_weight"   : 10,
             "alpha"      : 10}
         
         for _ in range(pop_size):
@@ -43,7 +43,7 @@ class GA:
                 "p_dropoff"  : min(1, max(0, init_vals["p_dropoff"]  + round(normal(loc=0, scale=0.05),3  ))),
                 "p_weight"   : max(1, init_vals["p_weight"]  + round(normal(loc=0, scale=3),3       )),
                 "d_weight"   : max(1, init_vals["d_weight"]  + round(normal(loc=0, scale=3),3       )),
-                "alpha"      : max(1, init_vals["alpha"]     + round(normal(loc=0, scale=0.4),3     )),
+                "alpha"      : max(1, init_vals["alpha"]     + round(normal(loc=0, scale=0.25),3     )),
                 "fitness"    : 0
             }
 

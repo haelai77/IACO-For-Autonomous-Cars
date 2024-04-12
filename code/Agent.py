@@ -237,6 +237,8 @@ class Agent:
         if self.ID == "tracker":
             self.pheromone=1000
             return 1
+        
+
 
         ###############################################
         # NOTE: always decay even if waiting (this also occurs after pheromone is updated)

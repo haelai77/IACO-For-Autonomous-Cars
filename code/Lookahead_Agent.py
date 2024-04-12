@@ -4,6 +4,7 @@ import numpy.typing as npt
 from numpy.random import choice
 from collections import defaultdict, deque
 from math import ceil
+import random
 
 class Lookahead_Agent:
     def __init__(self, src, grid=None, ID=None, pheromone = 0, alpha = 5, decay=0.9, spread_pct=0.5, p_dropoff = 0, p_weight = 1, d_weight = 1, move_buffer=[], signalling_toggle = False, detouring=False) -> None:
@@ -36,11 +37,18 @@ class Lookahead_Agent:
 
         # agent attributes
         self.ID = ID 
+
         self.direction = self.grid.grid[self.src] # direction of current cell
         self.prev_direction = self.direction
 
         # # the number of possible moves to move in each direction
         self.detour_directions = []
+
+        # dummy settings
+        if self.ID == "DUMMY": 
+            self.alpha = 0
+        self.pause_chance = 0.1
+        self.pause_length = 5
         
         # how the grid coordinate is updated when travelling in each of these directions
         self.cardinal_move = {
@@ -97,7 +105,7 @@ class Lookahead_Agent:
             # self.dst = (49 ,99)
             self.dst = (self.grid.CELLS_IN_HEIGHT - 1 ,50)
         
-    def _init_detour_directions(self, src, dst): # hack modify to have intercard_move as a immutable array-like holding junction cell labels
+    def _init_detour_directions(self, src, dst):
         '''sets up moveset and possible intercardinal directions'''
         moves = np.subtract(src, dst)
         self.detour_directions = []
@@ -294,6 +302,8 @@ class Lookahead_Agent:
 
     def update_attributes(self, move_choice):
         '''updates grid coordinate in tracker and current direciton of travel, optionally decrements item in moveset if buffer move not selected'''
+        if move_choice == "PAUSE":
+            return
 
         self.grid_coord = np.add(self.grid_coord, self.cardinal_move[move_choice]) # update grid coordinate
         self.prev_direction = self.direction
@@ -321,6 +331,11 @@ class Lookahead_Agent:
         # case 4: you're at a junction and need to compare 4 directions, 2 of which will be detours
         # elif self.direction in self.intercard_move and self.prev_direction in self.cardinal_move:
         elif self.direction in self.cardinal_move and self.grid.grid[tuple(np.add(self.grid_coord, self.cardinal_move[self.direction]))] in self.intercard_move:
+
+            if self.ID == "DUMMY" and random.random() <= self.pause_chance:
+                    self.move_buffer.extend(["PAUSE"] * self.pause_length)
+                    return
+
             self.move_buffer.append(self.direction)
             self.phero_dist_choice(np.add(self.grid_coord, self.cardinal_move[self.direction])) # this buffers neccessary moves
         ###############################################
