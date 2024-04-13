@@ -6,7 +6,7 @@ import time
 import json
 
 class GA:
-    def __init__(self, max_gen, pop_size, roads, t_max, mutation_chance, density=3, lookahead=False, detouring=False, p_dropoff=1, signalling=False, tourney_size=2) -> None:
+    def __init__(self, max_gen, pop_size, roads, t_max, mutation_chance, density=3, lookahead=False, detouring=False, p_dropoff=1, signalling=False, tourney_size=2, dummy=False) -> None:
         """current evolves individuals"""
         
         self.max_gen = max_gen
@@ -21,6 +21,7 @@ class GA:
         self.p_dropoff = p_dropoff
         self.signal = signalling
         self.tourney_size = tourney_size
+        self.dummy=dummy
 
         self.elitism = 3
 
@@ -66,7 +67,8 @@ class GA:
             "round_density":self.density,
             "lookahead":self.lookahead, 
             "detouring":self.detouring, 
-            "signalling_toggle":self.signal,}
+            "signalling_toggle":self.signal,
+            "dummy":self.dummy}
 
         inputs = [ {**template.copy(), **(dict(list(individual.items())[:-1]))} for individual in population]
         

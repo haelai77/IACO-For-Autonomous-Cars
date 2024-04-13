@@ -47,7 +47,8 @@ class Grid():
 
         return grid
 
-    def generate_agents(self, round_density = 2.3, 
+    def generate_agents(self,
+                        round_density = 2.3, 
                         alpha = 0, 
                         p_dropoff = 0, 
                         p_weight=1, 
@@ -56,7 +57,8 @@ class Grid():
                         lookahead=False, 
                         detouring=False, 
                         test=False, 
-                        signalling_toggle=False):
+                        signalling_toggle=False,
+                        dummy=False):
         '''generates agents at every time step and intialises them with a source'''
 
         if test:
@@ -73,13 +75,15 @@ class Grid():
                                           signalling_toggle=signalling_toggle, 
                                           detouring=detouring)]
             else:
-                agents = [Agent(self.entrances[0], grid=self, ID=1, alpha=alpha, p_dropoff=p_dropoff)]
-
+                print("here")
+                agents = [Lookahead_Agent(self.entrances[0], grid=self, ID="DUMMY", alpha=0, p_dropoff=p_dropoff, p_weight=p_weight, d_weight=d_weight, spread_pct=spread_pct, signalling_toggle=False, detouring=detouring)]
+            
             return agents
 
         sources = []
         probability = round_density/len(self.entrances) 
 
+        # randomly select sources
         for source in self.entrances:
             k = random.uniform(0,1)
             if k <= probability:
@@ -89,6 +93,14 @@ class Grid():
             agents = [Agent(src, grid=self, ID = i+1, alpha=alpha, p_dropoff=p_dropoff) for i, src in enumerate(sources)]
         else:
             agents = [Lookahead_Agent(src, grid=self, ID = i+1, alpha=alpha, p_dropoff=p_dropoff, p_weight=p_weight, d_weight=d_weight, spread_pct=spread_pct, signalling_toggle=signalling_toggle, detouring=detouring) for i, src in enumerate(sources)]
+        
+        # introduce dummies
+        if dummy:
+            for i in range(len(agents)):
+                k = random.uniform(0,1)
+                if k <= 1/len(self.entrances):
+                    agents[i] = Lookahead_Agent(agents[i].src, grid=self, ID="DUMMY", alpha=0, p_dropoff=p_dropoff, p_weight=p_weight, d_weight=d_weight, spread_pct=spread_pct, signalling_toggle=False, detouring=detouring)
+        
         return agents
 
     def generate_accessways(self):

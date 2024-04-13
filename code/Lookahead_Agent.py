@@ -47,8 +47,8 @@ class Lookahead_Agent:
         # dummy settings
         if self.ID == "DUMMY": 
             self.alpha = 0
-        self.pause_chance = 0.1
-        self.pause_length = 5
+        self.pause_chance = 2/10
+        self.pause_length = 10
         
         # how the grid coordinate is updated when travelling in each of these directions
         self.cardinal_move = {
@@ -100,10 +100,7 @@ class Lookahead_Agent:
                 selected = True
                 self.dst = dst_choice[:2]
                 self.dst_side = dst_choice[2]
-        if self.grid.test:
-            self.dst_side = "s"
-            # self.dst = (49 ,99)
-            self.dst = (self.grid.CELLS_IN_HEIGHT - 1 ,50)
+
         
     def _init_detour_directions(self, src, dst):
         '''sets up moveset and possible intercardinal directions'''
@@ -121,7 +118,7 @@ class Lookahead_Agent:
     def spread_helper_1(self):
         '''helper function that looks directly behind agent (one direction)'''
         spread_counter = 0 # counts how far away the cell the agent is checking
-        pheromone_spread = self.pheromone * self.spread_pct if not self.grid.test else 0
+        pheromone_spread = self.pheromone * self.spread_pct 
 
         next_check = np.subtract(self.grid_coord, self.cardinal_move[self.direction]) # only need to subtract
         while True:
@@ -138,7 +135,7 @@ class Lookahead_Agent:
 
     def spread_helper_2(self):
         '''function that helps spread pheromone in 2 directions when at junction i.e. if you are at a NE cell you can spread backwards and west wards as those 2 directions can arrive onto the NE cell'''
-        pheromone_spread = self.pheromone * self.spread_pct if not self.grid.test else 0
+        pheromone_spread = self.pheromone * self.spread_pct 
         
         spread_counter = 0 # counts how far away the cell the agent is checking
         next_check = [np.subtract(self.grid_coord, self.cardinal_move[direction]) for direction in self.direction] # next cells to check in each direction
@@ -288,7 +285,7 @@ class Lookahead_Agent:
             diag_cell = self.grid.tracker[diag[0], diag[1]]
 
             # if diagonally relative cell is empty or contains and agent where it's next move won't be next cell
-            if not diag_cell or (not tuple(np.add(diag_cell.grid_coord, self.cardinal_move[diag_cell.move_buffer[0]])) == tuple(move_result) and self.signalling_toggle):
+            if not diag_cell or (self.signalling_toggle and not tuple(np.add(diag_cell.grid_coord, self.cardinal_move[diag_cell.move_buffer[0]])) == tuple(move_result)):
                 self.grid.tracker[self.grid_coord[0], self.grid_coord[1]] = None
                 self.grid.tracker[move_result[0], move_result[1]] = self
                 return False
@@ -331,11 +328,12 @@ class Lookahead_Agent:
         # case 4: you're at a junction and need to compare 4 directions, 2 of which will be detours
         # elif self.direction in self.intercard_move and self.prev_direction in self.cardinal_move:
         elif self.direction in self.cardinal_move and self.grid.grid[tuple(np.add(self.grid_coord, self.cardinal_move[self.direction]))] in self.intercard_move:
-
+            
+            #if dummy have a chance for pausing
             if self.ID == "DUMMY" and random.random() <= self.pause_chance:
-                    self.move_buffer.extend(["PAUSE"] * self.pause_length)
-                    return
+                self.move_buffer.extend(["PAUSE"] * self.pause_length)
 
+            #still buffer moves for after pause
             self.move_buffer.append(self.direction)
             self.phero_dist_choice(np.add(self.grid_coord, self.cardinal_move[self.direction])) # this buffers neccessary moves
         ###############################################
@@ -348,7 +346,7 @@ class Lookahead_Agent:
                 raise Exception("no choices oh no")
         ###############################################
         # possible move check
-        if self.possible_move(np.add(self.grid_coord, self.cardinal_move[self.move_buffer[0]])):
+        if self.move_buffer[0] != "PAUSE" and self.possible_move(np.add(self.grid_coord, self.cardinal_move[self.move_buffer[0]])):
             self.delay += 1
             self.pheromone += 1
             return True

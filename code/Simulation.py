@@ -49,7 +49,8 @@ class simulation:
                 alpha=0, 
                 speed=100, 
                 test=False, 
-                GA=False) -> None:
+                GA=False,
+                dummy=False) -> None:
         
         '''runs simulation'''
         #initial grid
@@ -63,9 +64,13 @@ class simulation:
                                     d_weight=d_weight,
                                     spread_pct=spread_pct,
                                     lookahead=lookahead,
-                                    detouring = detouring,
-                                    signalling_toggle=signalling_toggle)
-        #### for GA #### 
+                                    detouring=detouring,
+                                    signalling_toggle=signalling_toggle,
+                                    dummy=dummy,
+                                    test=test)
+        #### for GA ####
+        end_counter = 0
+        t_save = None
         delay = []
         num_finished = []
         ################
@@ -114,7 +119,8 @@ class simulation:
                                                                         spread_pct=spread_pct,
                                                                         lookahead=lookahead, 
                                                                         detouring=detouring, 
-                                                                        signalling_toggle=signalling_toggle))
+                                                                        signalling_toggle=signalling_toggle,
+                                                                        dummy=dummy))
 
                         t += 1
                     elif event.type == pg.MOUSEBUTTONDOWN:
@@ -197,7 +203,9 @@ class simulation:
 
                 # calculate pheromone increase
                 for agent in agents:
-                    update_ph_list.extend(agent.spread_pheromone())
+                    if agent.ID != "DUMMY":
+                        update_ph_list.extend(agent.spread_pheromone())
+
                 # apply pheromone changes
                 for agent, update_val in update_ph_list:
                     agent.pheromone += update_val
@@ -210,10 +218,16 @@ class simulation:
                                                 spread_pct=spread_pct,
                                                 lookahead=lookahead, 
                                                 detouring=detouring, 
-                                                signalling_toggle=signalling_toggle))
+                                                signalling_toggle=signalling_toggle,
+                                                dummy=dummy))
                 t += 1
+
+                # not agents have finished in 500 time steps
+                if end_counter >= 200:
+                    break
                 
                 if finished:
+                    end_counter = 0
                     min_delay = min(agent.delay for agent in finished)
                     max_delay = max(agent.delay for agent in finished)
                     mean_delay = np.mean([agent.delay for agent in finished])
@@ -223,7 +237,10 @@ class simulation:
                     elif t >= (t_max-1000):
                         num_finished.append(len(finished))
                         delay.append(mean_delay)
+                        
                 else:
+                    t_save = t
+                    end_counter += 1
                     if not GA:
                         print(0, 0, 0, num_of_finished)
                     elif t >= (t_max-1000):
@@ -242,4 +259,4 @@ class simulation:
                     if num_fin != 0:
                         filtered_delay.append(delay[i])
 
-                return sum(filtered_delay)/len(filtered_delay)
+                return sum(filtered_delay)/len(filtered_delay) + (t_max - t_save + 1)

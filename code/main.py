@@ -36,6 +36,9 @@ parser.add_argument("-pop_size", default=100, type=int)
 parser.add_argument("-mutation_chance", default=2/5, type=float)
 parser.add_argument("-tourney_size", default=5, type=int)
 
+# spawn dummies
+parser.add_argument("-dummy", action="store_true")
+
 args = parser.parse_args()
 
 if not args.lookahead and (args.signalling or args.detouring):
@@ -67,7 +70,10 @@ if not args.ga:
                         spread_pct=args.spread_pct,
                         lookahead=args.lookahead,
                         detouring = args.detouring,
-                        signalling_toggle=args.signalling)
+                        signalling_toggle=args.signalling,
+                        
+                        dummy=args.dummy,
+                        test=args.test)
     
 elif args.ga:
     if __name__ == "__main__":
@@ -81,5 +87,6 @@ elif args.ga:
                             detouring=args.detouring,
                             p_dropoff=args.p_dropoff,
                             signalling=args.signalling,
-                            tourney_size = args.tourney_size)
+                            tourney_size = args.tourney_size,
+                            dummy=args.dummy)
         genetic_algorithm.run()
