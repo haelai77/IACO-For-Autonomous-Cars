@@ -176,9 +176,11 @@ class GA:
             assessed_pop = self.assess_fitness(population=mutants)
 
             best = assessed_pop[0]
-            worst = assessed_pop[-1]
+            worst = assessed_pop[-1]["fitness"]
+            fitnesses = [d["fitness"] for d in assessed_pop]
+            avg = sum(fitnesses)/len(fitnesses)
 
-            print(f"{best}, {worst}")
+            print(f"{best}, {avg}, {worst}")
 
 
 #python main.py -ga -density=3 -t_max=3000 -pop_size=20 -tourney_size=3 -max_gen=5

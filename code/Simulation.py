@@ -249,14 +249,11 @@ class simulation:
 
         if GA:
             # if the number of agents that have finished in the last 1000 is less than 
-            if sum(num_finished) < 75:
-                return 99999
-            else:
-                filtered_delay = []
+            filtered_delay = []
 
-                # if no agents have finished then don't consider the delay
-                for i, num_fin in enumerate(num_finished):
-                    if num_fin != 0:
-                        filtered_delay.append(delay[i])
+            # if no agents have finished then don't consider the delay
+            for i, num_fin in enumerate(num_finished):
+                if num_fin != 0:
+                    filtered_delay.append(delay[i])
 
-                return sum(filtered_delay)/len(filtered_delay) + (t_max - t_save + 1)
+            return sum(filtered_delay)/len(filtered_delay) + (t_max - t_save + 1)
