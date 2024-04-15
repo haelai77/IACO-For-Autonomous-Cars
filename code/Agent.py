@@ -123,14 +123,19 @@ class Agent:
         checks if move is good and updates location in tracking grid
         -> returning false is a good thing i.e. the move is possible
         '''
+        #NOTE checks first 2 squares in junction else checks ahead
         next_cell = self.grid.tracker[move_result[0], move_result[1]]
+        
         # if next square is an intercardinal cell we want to check the top right adjacent cell relative to direction of travel of agent
         if self.direction in self.cardinal_move and self.grid.grid[move_result[0], move_result[1]] in self.intercard_move and not next_cell:
             diag = np.add(self.diag_check[self.direction], self.grid_coord)
-            if not self.grid.tracker[diag[0], diag[1]]: # if relative top right diagonal cell is empty in junction
+            diag_cell = self.grid.tracker[diag[0], diag[1]]
+
+            if not diag_cell: # if relative top right diagonal cell is empty in junction
                 self.grid.tracker[self.grid_coord[0], self.grid_coord[1]] = None
                 self.grid.tracker[move_result[0], move_result[1]] = self
                 return False
+            
         elif not next_cell: # if next cell is empty and you're on a straight road
             self.grid.tracker[self.grid_coord[0], self.grid_coord[1]] = None
             self.grid.tracker[move_result[0], move_result[1]] = self
@@ -149,7 +154,7 @@ class Agent:
         possible_turns = [self.moveset[move_choice] == self.final_road_len and move_choice == self.dst_side and tuple(self.grid_coord) != tuple(self.exit_junc) for move_choice in directions]
         if sum(possible_turns) == 1: # if sum is 1 then we are at the edge of the grid    
             for index, entry in enumerate(possible_turns):
-                if not entry: return directions[index]
+                if not entry: return directions[index] # return direction where possible turn is true
 
         # case 3: you need to look ahead in each direction you are travelling in and determine which option is best for self based on formulas specified in Fabrice's paper
         found_flags = [0] * 2 # will always be 2 options in vanilla version
@@ -180,16 +185,19 @@ class Agent:
         spread_counter = 0 # counts how far away the cell the agent is checking
         pheromone_spread = self.pheromone * self.spread
 
-        next_check = np.subtract(self.grid_coord, self.cardinal_move[self.direction]) # only need to subtract
+        next_check = np.subtract(self.grid_coord, self.cardinal_move[self.direction]) # only need to subtract to look back 1 cell
         while True:
             spread_counter += 1
-            if not (0 <= next_check[0] <= self.grid.CELLS_IN_HEIGHT-1 and 0 <= next_check[1] <= self.grid.CELLS_IN_WIDTH-1): # if not within bounds
+            # reached edge of grid
+            if not (0 <= next_check[0] <= self.grid.CELLS_IN_HEIGHT-1 and 0 <= next_check[1] <= self.grid.CELLS_IN_WIDTH-1):
                 self.pheromone = max(0, self.pheromone - pheromone_spread) # avoids any floating point error going negative
                 return []
+            
+            # not at edge
             else:
                 cell = self.grid.tracker[next_check[0], next_check[1]]
-                self.pheromone = max(0, self.pheromone - pheromone_spread) # avoids any floating point error going negative
                 if cell:
+                    self.pheromone = max(0, self.pheromone - pheromone_spread) # avoids any floating point error going negative
                     return [(cell, pheromone_spread * (self.spread_decay ** spread_counter))] # return agent behind and pheromone it needs to update
                 next_check = np.subtract(next_check, self.cardinal_move[self.direction])
 
@@ -235,15 +243,12 @@ class Agent:
         ###############################################
         # # for bug fixing
         if self.ID == "tracker":
-            self.pheromone=1000
             return 1
-        
-
 
         ###############################################
         # NOTE: always decay even if waiting (this also occurs after pheromone is updated)
         self.pheromone = self.pheromone * self.decay
-
+        #end if at destination
         if self.dst == tuple(self.grid_coord):
             self.grid.tracker[self.grid_coord[0], self.grid_coord[1]] = None
             return False

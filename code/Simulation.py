@@ -93,6 +93,7 @@ class simulation:
             # -------- Main Game Loop ----------- #
             pause = False
             while t != t_max:
+
                 pg.display.set_caption(f'[t:{t}] [max_p = {round(max_pheromone, 2)}] [max delay = {max_delay}] [density = {round_density}] [alpha = {alpha}] [spread_decay = {p_dropoff}] [detouring: {detouring}] [signalling: {signalling_toggle}]')
                 # HANDLE EVENTS
                 for event in pg.event.get():
@@ -101,15 +102,16 @@ class simulation:
                         pause = not pause
                     
                     elif event.type == move_event and not pause:
-                        
                         update_ph_list = []
                         _, agents = self.isfinished(agents=agents) # removes ones that have reached their destination 
                         # # calculate pheromone increase
                         for agent in agents:
+                            if agent.ID =="tracker": continue
                             update_ph_list.extend(agent.spread_pheromone())
                         # apply pheromone changes
                         for agent, update_val in update_ph_list:
                             agent.pheromone += update_val
+
                         # # add more agents
                         if not test: agents.extend(grid.generate_agents(round_density=round_density, 
                                                                         alpha=alpha, 
@@ -203,12 +205,13 @@ class simulation:
 
                 # calculate pheromone increase
                 for agent in agents:
-                    if agent.ID != "DUMMY":
+                    if agent.ID != "DUMMY" or agent.ID != "tracker":
                         update_ph_list.extend(agent.spread_pheromone())
 
                 # apply pheromone changes
                 for agent, update_val in update_ph_list:
                     agent.pheromone += update_val
+                    
                 # add more agents
                 agents.extend(grid.generate_agents(round_density=round_density, 
                                                 alpha=alpha, 
@@ -223,7 +226,8 @@ class simulation:
                 t += 1
 
                 # not agents have finished in 500 time steps
-                if end_counter >= 200:
+                if end_counter >= 500:
+                    print("gridlocked", t_save)
                     break
                 
                 if finished:

@@ -101,7 +101,6 @@ class Lookahead_Agent:
                 self.dst = dst_choice[:2]
                 self.dst_side = dst_choice[2]
 
-        
     def _init_detour_directions(self, src, dst):
         '''sets up moveset and possible intercardinal directions'''
         moves = np.subtract(src, dst)
@@ -128,8 +127,8 @@ class Lookahead_Agent:
                 return []
             else:
                 cell = self.grid.tracker[next_check[0], next_check[1]]
-                self.pheromone = max(0, self.pheromone - pheromone_spread) # decreases agent's pheromone pool
                 if cell:
+                    self.pheromone = max(0, self.pheromone - pheromone_spread) # decreases agent's pheromone pool
                     return [(cell, pheromone_spread * (self.p_dropoff ** spread_counter))] # return agent behind and pheromone it needs to update
                 next_check = np.subtract(next_check, self.cardinal_move[self.direction])
 
@@ -279,12 +278,12 @@ class Lookahead_Agent:
         -> returning false is a good thing i.e. the move is possible
         '''
         next_cell = self.grid.tracker[move_result[0], move_result[1]]
-        # if current cell is cardinal and next cell is intercarinal and next cell is empty
+        # if about to enter junction check next cell empty
         if self.direction in self.cardinal_move and self.grid.grid[move_result[0], move_result[1]] in self.intercard_move and not next_cell:
             diag = np.add(self.diag_check[self.direction], self.grid_coord)
             diag_cell = self.grid.tracker[diag[0], diag[1]]
 
-            # if diagonally relative cell is empty or contains and agent where it's next move won't be next cell
+            # if cell to right of travel isn't empty
             if not diag_cell or (self.signalling_toggle and not tuple(np.add(diag_cell.grid_coord, self.cardinal_move[diag_cell.move_buffer[0]])) == tuple(move_result)):
                 self.grid.tracker[self.grid_coord[0], self.grid_coord[1]] = None
                 self.grid.tracker[move_result[0], move_result[1]] = self
@@ -312,9 +311,6 @@ class Lookahead_Agent:
 
         self.pheromone = self.pheromone * self.decay
 
-        # dummy agent check
-        if self.ID == "tracker":
-            return 1
         ###############################################
         # case 1: if destination has been reached
         if self.dst == tuple(self.grid_coord):

@@ -2,6 +2,8 @@ import numpy as np
 import numpy.typing as npt
 from Agent import Agent
 from Lookahead_Agent import Lookahead_Agent
+# from Vanilla_Agent import Vanilla_Agent
+
 import random
 
 class Grid():
@@ -63,22 +65,11 @@ class Grid():
 
         if test:
             self.test = True
-            if lookahead: 
-                agents = [Lookahead_Agent(self.entrances[0], 
-                                          grid=self, 
-                                          ID=1, 
-                                          alpha=alpha, 
-                                          p_dropoff=p_dropoff, 
-                                          p_weight=p_weight, 
-                                          d_weight=d_weight,
-                                          spread_pct=spread_pct,
-                                          signalling_toggle=signalling_toggle, 
-                                          detouring=detouring)]
-            else:
-                print("here")
-                agents = [Lookahead_Agent(self.entrances[0], grid=self, ID="DUMMY", alpha=0, p_dropoff=p_dropoff, p_weight=p_weight, d_weight=d_weight, spread_pct=spread_pct, signalling_toggle=False, detouring=detouring)]
-            
+
+            agents = [Agent(self.entrances[16], grid=self, ID=1, alpha=10)]
+            agents.append(Agent((15,83, "e"), grid=self, ID="tracker", alpha=10))
             return agents
+
 
         sources = []
         probability = round_density/len(self.entrances) 
