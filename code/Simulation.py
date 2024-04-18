@@ -227,26 +227,27 @@ class simulation:
 
                 # not agents have finished in 500 time steps
                 if end_counter >= 500:
-                    print("gridlocked", t_save)
+                    if not GA: print("gridlocked", t_save)
                     break
                 
                 if finished:
                     end_counter = 0
+                    t_save = t
                     min_delay = min(agent.delay for agent in finished)
                     max_delay = max(agent.delay for agent in finished)
                     mean_delay = np.mean([agent.delay for agent in finished])
+                    mean_signalling = np.mean([agent.signal_counter for agent in finished])
 
                     if not GA:
-                        print(min_delay, max_delay, mean_delay, num_of_finished)
+                        print(min_delay, max_delay, mean_delay, num_of_finished, mean_signalling)
                     elif t >= (t_max-1000):
                         num_finished.append(len(finished))
                         delay.append(mean_delay)
                         
                 else:
-                    t_save = t
                     end_counter += 1
                     if not GA:
-                        print(0, 0, 0, num_of_finished)
+                        print(0, 0, 0, num_of_finished, 0)
                     elif t >= (t_max-1000):
                         num_finished.append(0)
                         delay.append(0)

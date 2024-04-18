@@ -8,6 +8,8 @@ import random
 
 class Lookahead_Agent:
     def __init__(self, src, grid=None, ID=None, pheromone = 0, alpha = 5, decay=0.9, spread_pct=0.5, p_dropoff = 0, p_weight = 1, d_weight = 1, move_buffer=[], signalling_toggle = False, detouring=False) -> None:
+        self.signal_counter = 0
+        
         self.pheromone = pheromone
         self.delay = 0
         self.alpha = alpha
@@ -255,7 +257,7 @@ class Lookahead_Agent:
 
             lin_comb_p_d = ((self.alpha != 0) * self.p_weight * p_val) + (self.d_weight * distance) # if alpha is zero then no pheromones, if detouring is zero then no distance
             power = int((self.alpha == 0) + (self.alpha != 0)*self.alpha)
-            weights.append( (1 / int(1 + (lin_comb_p_d))**power) ) # calculate weight as before in Agent.py
+            weights.append( (1 / float(1 + (lin_comb_p_d))**power) ) # calculate weight as before in Agent.py
         # choose move based on probabilities
         sum_of_weights = np.sum(weights)
         probabilities = [weight/sum_of_weights for weight in weights]
@@ -285,6 +287,9 @@ class Lookahead_Agent:
 
             # if cell to right of travel isn't empty
             if not diag_cell or (self.signalling_toggle and not tuple(np.add(diag_cell.grid_coord, self.cardinal_move[diag_cell.move_buffer[0]])) == tuple(move_result)):
+                if (diag_cell and self.signalling_toggle and not tuple(np.add(diag_cell.grid_coord, self.cardinal_move[diag_cell.move_buffer[0]])) == tuple(move_result)):
+                    self.signal_counter += 1
+
                 self.grid.tracker[self.grid_coord[0], self.grid_coord[1]] = None
                 self.grid.tracker[move_result[0], move_result[1]] = self
                 return False
