@@ -237,9 +237,10 @@ class simulation:
                     max_delay = max(agent.delay for agent in finished)
                     mean_delay = np.mean([agent.delay for agent in finished])
                     mean_signalling = np.mean([agent.signal_counter for agent in finished])
+                    mean_detours = np.mean([agent.detour_taken for agent in finished]) if detouring else 0
 
                     if not GA:
-                        print(min_delay, max_delay, mean_delay, num_of_finished, mean_signalling)
+                        print(min_delay, max_delay, mean_delay, num_of_finished, mean_signalling, mean_detours)
                     elif t >= (t_max-1000):
                         num_finished.append(len(finished))
                         delay.append(mean_delay)
@@ -247,7 +248,7 @@ class simulation:
                 else:
                     end_counter += 1
                     if not GA:
-                        print(0, 0, 0, num_of_finished, 0)
+                        print(0, 0, 0, num_of_finished, 0, 0)
                     elif t >= (t_max-1000):
                         num_finished.append(0)
                         delay.append(0)
@@ -260,5 +261,8 @@ class simulation:
             for i, num_fin in enumerate(num_finished):
                 if num_fin != 0:
                     filtered_delay.append(delay[i])
+
+            if sum(num_finished) < 200:
+                return 9999
 
             return sum(filtered_delay)/len(filtered_delay) + (t_max - t_save + 1)

@@ -12,6 +12,7 @@ class Agent:
         self.decay = decay
         self.spread = spread
         self.spread_decay = p_dropoff
+        self.signal_counter = 0
 
         # grid related attributes
         self.src: tuple = src[:2] # starting coordinates

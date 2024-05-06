@@ -23,7 +23,7 @@ class GA:
         self.tourney_size = tourney_size
         self.dummy=dummy
 
-        self.elitism = 3
+        self.elitism = 1
 
         self.simulation = simulation()
 
@@ -35,16 +35,16 @@ class GA:
             "spread_pct" : 0.5,
             "p_dropoff"  : 1, # 1 = no dropoff
             "p_weight"   : 1,
-            "d_weight"   : 10,
-            "alpha"      : 10}
+            "d_weight"   : 1,
+            "alpha"      : 5}
         
         for _ in range(pop_size):
             genome = {
                 "spread_pct" : min(1, max(0, init_vals["spread_pct"] + round(normal(loc=0, scale=0.05),3  ))),
                 "p_dropoff"  : min(1, max(0, init_vals["p_dropoff"]  + round(normal(loc=0, scale=0.05),3  ))),
-                "p_weight"   : max(1, init_vals["p_weight"]  + round(normal(loc=0, scale=3),3       )),
-                "d_weight"   : max(1, init_vals["d_weight"]  + round(normal(loc=0, scale=3),3       )),
-                "alpha"      : max(1, init_vals["alpha"]     + round(normal(loc=0, scale=0.25),3     )),
+                "p_weight"   : max(1, init_vals["p_weight"]  + round(normal(loc=0, scale=1.5),3       )),
+                "d_weight"   : max(1, init_vals["d_weight"]  + round(normal(loc=0, scale=1.5),3       )),
+                "alpha"      : max(1, init_vals["alpha"]     + round(normal(loc=0, scale=1.5),3     )),
                 "fitness"    : 0
             }
 
@@ -129,9 +129,9 @@ class GA:
         mutation_rates = {
             "spread_pct": round(normal(loc=0, scale=0.05),3   ), #95% within 1.5% change
             "p_dropoff" : round(normal(loc=0, scale=0.05),3   ), #95% within 1.5 change
-            "p_weight"  : round(normal(loc=0, scale=3),3      ), 
-            "d_weight"  : round(normal(loc=0, scale=3),3      ),
-            "alpha"     : round(normal(loc=0, scale=0.25),3    ),
+            "p_weight"  : round(normal(loc=0, scale=1.5),3      ), 
+            "d_weight"  : round(normal(loc=0, scale=1.5),3      ),
+            "alpha"     : round(normal(loc=0, scale=1.5),3    ),
         }
 
         for individual in population[elitism:]:
@@ -176,11 +176,15 @@ class GA:
             assessed_pop = self.assess_fitness(population=mutants)
 
             best = assessed_pop[0]
-            worst = assessed_pop[-1]["fitness"]
-            fitnesses = [d["fitness"] for d in assessed_pop]
-            avg = sum(fitnesses)/len(fitnesses)
 
-            print(f"{best}, {avg}, {worst}")
+            fitnesses = [d["fitness"] for d in assessed_pop]
+            alpha = [d["alpha"] for d in assessed_pop]
+            spread_pct = [d["spread_pct"] for d in assessed_pop]
+            p_dropoff = [d["p_dropoff"] for d in assessed_pop]
+            p_weight = [d["p_weight"] for d in assessed_pop]
+            d_weight = [d["d_weight"] for d in assessed_pop]
+
+            print(f"{best}_{fitnesses}_{alpha}_{spread_pct}_{p_dropoff}_{p_weight}_{d_weight}")
 
 
 #python main.py -ga -density=3 -t_max=3000 -pop_size=20 -tourney_size=3 -max_gen=5
