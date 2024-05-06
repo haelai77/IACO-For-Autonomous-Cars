@@ -8,15 +8,15 @@ import random
 
 class Grid():
     def __init__(self,
-                 cell_size_px = 5, # pixel size of a cell in the grid
+                 cell_size_px = 5, # pixel size of a cell in the grid # 5
                  grey_block_size = 15, # number of cells a grey block should be 
                  num_roads_on_axis = 5,
-                 margin = 1) -> None:
+                 margin = 1) -> None: # 1
         self.test = False
         self.CELL_SIZE: int = cell_size_px
-        self.BLOCK_SIZE: int = grey_block_size
+        self.BLOCK_SIZE: int = cell_size_px * 3
         self.NUM_ROADS_ON_AXIS: int = num_roads_on_axis
-        self.CELLS_IN_WIDTH = self.CELLS_IN_HEIGHT = grey_block_size * (num_roads_on_axis + 1) + 2 * num_roads_on_axis
+        self.CELLS_IN_WIDTH = self.CELLS_IN_HEIGHT = self.BLOCK_SIZE * (num_roads_on_axis + 1) + 2 * num_roads_on_axis
 
         self.MARGIN = margin
         self.WINDOW_SIZE = [self.CELLS_IN_WIDTH * self.CELL_SIZE + self.MARGIN*self.CELLS_IN_WIDTH, # GRID_WIDTH * CELL_PX + MARGIN* GRID_WIDTH

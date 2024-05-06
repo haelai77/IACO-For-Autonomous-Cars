@@ -39,7 +39,7 @@ class Lookahead_Agent:
         self.ID = ID 
 
         self.direction = self.grid.grid[self.src] # direction of current cell
-        self.prev_direction = self.direction
+        self.prev_direction = self.direction #note not needed
 
         # # the number of possible moves to move in each direction
         self.detour_directions = []
@@ -227,11 +227,11 @@ class Lookahead_Agent:
         
     def phero_dist_choice(self, coord): # OPTIMISE
         '''returns immediate move and stores rest in move buffer'''
-        extra_dist = {
-            "n" : (-int(self.grid_coord[1] < self.dst[1]), 0),
-            "s" : (int(self.grid_coord[1] > self.dst[1]), 0),
-            "e" : (0, int(self.grid_coord[0] < self.dst[0])),
-            "w" : (0, -int(self.grid_coord[0] > self.dst[0]))}
+        extra_dist = { 
+            "n" : (-int(self.grid_coord[1] < self.dst[1]), 0), # we're going north and destination is above us
+            "s" : (int(self.grid_coord[1] > self.dst[1]), 0), # we're going south and exit is below us
+            "e" : (0, int(self.grid_coord[0] < self.dst[0])), # we're going east and the exit is in the east
+            "w" : (0, -int(self.grid_coord[0] > self.dst[0]))} # we're going west and the exit is in the west
 
         pheromones = self.search_pheromones(coord) # [ (pheromone, direction) ]
         if not pheromones:
@@ -245,7 +245,7 @@ class Lookahead_Agent:
             current_cell = self.grid.grid[tuple(coord)]
             
             branch_start = np.add(coord, self.root_cell[f"{current_cell}{direction}"][:2])
-            branch_endpoint = np.sum([branch_start, np.multiply(self.cardinal_move[direction], self.grid.BLOCK_SIZE+1), extra_dist[direction]], axis = 0) # coordinate to calculate new distance from (branch_cell + block size + extra distance due to right turn)
+            branch_endpoint = np.sum([branch_start, np.multiply(self.cardinal_move[direction], self.grid.BLOCK_SIZE), extra_dist[direction]], axis = 0) # coordinate to calculate new distance from (branch_cell + block size + extra distance due to right turn)
 
             distance = np.sum(np.add(np.abs(np.subtract(branch_endpoint, self.dst)), extra_dist[direction])) # manhattan distance between move endpoint and destination
             distance += (len(self.root_cell[f"{current_cell}{direction}"][2]) - 1 ) # distance required to move in curent junction to reach cell you branch out from taking into account uturn at endpoint
@@ -255,7 +255,7 @@ class Lookahead_Agent:
 
             lin_comb_p_d = ((self.alpha != 0) * self.p_weight * p_val) + (self.d_weight * distance) # if alpha is zero then no pheromones, if detouring is zero then no distance
             power = int((self.alpha == 0) + (self.alpha != 0)*self.alpha)
-            weights.append( (1 / int(1 + (lin_comb_p_d))**power) ) # calculate weight as before in Agent.py
+            weights.append( (1 / float(1 + (lin_comb_p_d))**power) ) # calculate weight as before in Agent.py
         # choose move based on probabilities
         sum_of_weights = np.sum(weights)
         probabilities = [weight/sum_of_weights for weight in weights]

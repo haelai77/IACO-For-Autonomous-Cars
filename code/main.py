@@ -16,7 +16,7 @@ parser.add_argument("-signalling", action="store_true")
 parser.add_argument("-density", default=2.3, type=float)
 
 # how much pheromone / pheromone & distance is taken into account
-parser.add_argument("-alpha", default=0, type=int)
+parser.add_argument("-alpha", default=0, type=float)
 
 # simulation attributes
 parser.add_argument("-t_max", default=20000, type=int)
@@ -26,8 +26,8 @@ parser.add_argument("-speed", default=50, type=int)
 # detouring attributes
 parser.add_argument("-spread_pct", default=0.5, type=float)
 parser.add_argument("-p_dropoff", default=1, type=float)
-parser.add_argument("-p_weight", default=1, type=int)
-parser.add_argument("-d_weight", default=1, type=int)
+parser.add_argument("-p_weight", default=1, type=float)
+parser.add_argument("-d_weight", default=1, type=float)
 
 # genetic algorithm parameters
 parser.add_argument("-ga", action="store_true")
@@ -35,6 +35,10 @@ parser.add_argument("-max_gen", default=1000, type=int)
 parser.add_argument("-pop_size", default=100, type=int)
 parser.add_argument("-mutation_chance", default=2/5, type=float)
 parser.add_argument("-tourney_size", default=5, type=int)
+
+# density checker
+parser.add_argument("-cong", action="store_true")
+
 
 # spawn dummies
 parser.add_argument("-dummy", action="store_true")
@@ -71,6 +75,7 @@ if not args.ga:
                         lookahead=args.lookahead,
                         detouring = args.detouring,
                         signalling_toggle=args.signalling,
+                        cong=args.cong,
                         
                         dummy=args.dummy,
                         test=args.test)

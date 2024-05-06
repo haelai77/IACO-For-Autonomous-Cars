@@ -9,6 +9,9 @@ from Grid import Grid
 import random
 import argparse
 
+import math
+from itertools import combinations
+
 GREY = (128, 128, 128)
 WHITE = (255, 255, 255)
 
@@ -19,7 +22,67 @@ BLUE = (30,144,255)
 
 TEMP_AGENT_COLOUR = (242, 0, 255)
 
+
+
 class simulation:
+
+    def split_quadrant_helper(self, tracker):
+
+        quadrants = []
+
+        quadrants.append(tracker[0:33, 0:33]) #00
+        quadrants.append(tracker[0:33, 33:67]) #01
+        quadrants.append(tracker[0:33, 67:100]) # 02
+
+        quadrants.append(tracker[33:67, 0:33]) # 03
+        quadrants.append(tracker[33:67, 33:67]) # 04
+        quadrants.append(tracker[33:67, 67:100]) # 05
+
+        quadrants.append(tracker[67:100, 0:33]) # 06
+        quadrants.append(tracker[67:100, 33:67]) # 07
+        quadrants.append(tracker[67:100, 67:1000]) # 08
+
+        return quadrants
+    
+    def agent_coords(self, quadrant):
+        coords = []
+
+        for i in range(len(quadrant)):
+            for j in range(len(quadrant[0])):
+                if quadrant[i][j] is not None:
+                    coords.append((i,j))
+        return coords
+    
+    def dist(self, p1,p2):
+        (x1, y1), (x2, y2) = p1, p2
+        return math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
+
+    def calc_avg_dist(self, coords_list):
+        distances = []
+        # print(list(combinations(coords_list, 2)),)
+        for combo in combinations(coords_list, 2):
+            p1, p2 = combo
+            distances.append(self.dist(p1, p2))
+        return sum(distances)/len(distances)
+
+
+    def nearest_neighoburs_check(self, tracker):
+        """returns the average distance between all agents within each quadrant of the environemnt split into 9 sections"""
+        quadrants = self.split_quadrant_helper(tracker)
+        results = []
+        number_in_quadrant = []
+
+        for quadrant in quadrants:
+            agent_coordianates = self.agent_coords(quadrant)
+            number_in_quadrant.append(len(agent_coordianates))
+            average_dist = self.calc_avg_dist(agent_coordianates)
+            results.append(average_dist)
+
+        print("num agents in quadrants:", number_in_quadrant)
+        print("avg dist between agents:", results)
+        return 
+
+
     def isfinished(self, agents):
         finished = []
         agents_new = []
@@ -50,7 +113,9 @@ class simulation:
                 speed=100, 
                 test=False, 
                 GA=False,
-                dummy=False) -> None:
+                dummy=False,
+                
+                cong=False) -> None:
         
         '''runs simulation'''
         #initial grid
@@ -157,8 +222,8 @@ class simulation:
                         max_delay = agent.delay
                     if max_pheromone < agent.pheromone:
                         max_pheromone = agent.pheromone
-                        orang_thresh = 0.333 * max_pheromone
-                        red_thresh = 0.666 * max_pheromone
+                        orang_thresh = 4#0.333 * max_pheromone
+                        red_thresh = 6# * max_pheromone
 
                     row, col = agent.grid_coord
                     srow, scol = agent.src
@@ -235,8 +300,9 @@ class simulation:
                     min_delay = min(agent.delay for agent in finished)
                     max_delay = max(agent.delay for agent in finished)
                     mean_delay = np.mean([agent.delay for agent in finished])
+                    mean_detours = np.mean([agent.detour_taken for agent in finished]) if detouring else 0
 
-                    if not GA:
+                    if not GA and not cong:
                         print(min_delay, max_delay, mean_delay, num_of_finished)
                     elif t >= (t_max-1000):
                         num_finished.append(len(finished))
@@ -245,7 +311,7 @@ class simulation:
                 else:
                     t_save = t
                     end_counter += 1
-                    if not GA:
+                    if not GA and not cong:
                         print(0, 0, 0, num_of_finished)
                     elif t >= (t_max-1000):
                         num_finished.append(0)
@@ -261,3 +327,6 @@ class simulation:
                     filtered_delay.append(delay[i])
 
             return sum(filtered_delay)/len(filtered_delay) + (t_max - t_save + 1)
+        
+        if cong:
+            self.nearest_neighoburs_check(grid.tracker)

@@ -131,7 +131,7 @@ class GA:
             "p_dropoff" : round(normal(loc=0, scale=0.05),3   ), #95% within 1.5 change
             "p_weight"  : round(normal(loc=0, scale=3),3      ), 
             "d_weight"  : round(normal(loc=0, scale=3),3      ),
-            "alpha"     : round(normal(loc=0, scale=0.25),3    ),
+            "alpha"     : round(normal(loc=0, scale=0.25),3   ),
         }
 
         for individual in population[elitism:]:
