@@ -6,4 +6,6 @@ Increasing traffic congestion on roads presents numerous issues for sustainabili
 
 This dissertation presents novel methods of decentralised communication between autonomous cars using swarm intelligence inspired by ground-dwelling insects. The evaluation of these methods employs Monte Carlo simulations of cars travelling across a ``Manhattan-style" network of roads. By adjusting and modifying how agents communicate in the swarm, we were able to analyse the amount of delay experienced on average within each simulation.
 
-The proposed methods of decentralised communication, demonstrated notable performance benefits in terms of congestion handling ability. Initially a ``base" model was implemented for a baseline comparison where in vehicles/agents arbitrarily made routing decisions to reach their destiations.
+The proposed methods of decentralised communication, demonstrated notable performance benefits in terms of congestion handling ability. Initially a ``base" model was implemented for a baseline comparison where in vehicles/agents arbitrarily made routing decisions to reach their destinations.
+--------------------------
+python code/main.py -vis -density 3 -alpha 0 -spread_decay 0.00
